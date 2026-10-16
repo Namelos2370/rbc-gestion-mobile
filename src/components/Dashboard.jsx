@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../config/supabase';
-import { Bell, LogOut } from 'lucide-react';
+import { Bell, LogOut, ChevronDown } from 'lucide-react';
 import Invoices from './Invoices';
 import Validation from './Validation';
 import Batches from './Batches';
@@ -19,12 +19,28 @@ const ONGLETS = [
   { id: 'audit', label: 'Audit' },
 ];
 
+// Menu déroulant ouvert en cliquant sur le logo
+const MENU_LOGO = [
+  { id: 'invoices', label: 'Accueil · Factures' },
+  { id: 'validation', label: 'Validation des factures' },
+  { id: 'batches', label: 'Proformas', superAdmin: true },
+  { id: 'audit', label: "Journal d'audit" },
+  { id: 'profile', label: 'Mon profil' },
+];
+
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const [onglet, setOnglet] = useState('invoices');
   const [stats, setStats] = useState({ enAttente: 0, validees: 0, lots: 0, totalMois: 0 });
   const [alertes, setAlertes] = useState([]);
   const [notifOuverte, setNotifOuverte] = useState(false);
+  const [menuLogoOuvert, setMenuLogoOuvert] = useState(false);
+
+  const choisirDansMenu = (id) => {
+    setOnglet(id);
+    setMenuLogoOuvert(false);
+    setNotifOuverte(false);
+  };
 
   const chargerStats = async () => {
     const [{ data: factures }, { count: nbLots }] = await Promise.all([
@@ -52,11 +68,6 @@ export default function Dashboard() {
   useEffect(() => {
     chargerStats();
   }, [onglet]);
-
-  const allerAccueil = () => {
-    setOnglet('invoices');
-    setNotifOuverte(false);
-  };
 
   const contenu = () => {
     switch (onglet) {
@@ -92,11 +103,29 @@ export default function Dashboard() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-2 flex items-center gap-3">
-          <button onClick={allerAccueil} aria-label="Retour à l'accueil"
-            className="flex items-center gap-2 sm:gap-3 rounded-lg min-h-[44px] hover:opacity-80 min-w-0">
-            <img src={logoRbc} alt="Logo RBC Business Center" className="w-10 h-10 sm:w-11 sm:h-11 object-contain shrink-0" />
-            <span className="font-bold text-base sm:text-lg truncate">RBC Gestion</span>
-          </button>
+          <div className="relative min-w-0">
+            <button onClick={() => setMenuLogoOuvert(!menuLogoOuvert)}
+              aria-label="Menu RBC Gestion" aria-expanded={menuLogoOuvert} aria-haspopup="menu"
+              className="flex items-center gap-2 sm:gap-3 rounded-lg min-h-[44px] hover:bg-slate-100 px-1 pr-2 min-w-0">
+              <img src={logoRbc} alt="Logo RBC Business Center" className="w-10 h-10 sm:w-11 sm:h-11 object-contain shrink-0" />
+              <span className="font-bold text-base sm:text-lg truncate">RBC Gestion</span>
+              <ChevronDown size={16} className={`shrink-0 text-slate-500 transition ${menuLogoOuvert ? 'rotate-180' : ''}`} />
+            </button>
+            {menuLogoOuvert && (
+              <ul role="menu" className="absolute left-0 top-full mt-2 w-64 max-w-[85vw] bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-2">
+                {MENU_LOGO.filter((m) => !m.superAdmin || user?.role === 'super_admin').map((m) => (
+                  <li key={m.id} role="none">
+                    <button role="menuitem" onClick={() => choisirDansMenu(m.id)}
+                      className={`w-full text-left min-h-[44px] px-3 rounded-lg transition ${
+                        onglet === m.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
+                      }`}>
+                      {m.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <div className="relative">
