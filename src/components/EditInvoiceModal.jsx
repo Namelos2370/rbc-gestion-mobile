@@ -39,16 +39,17 @@ export default function EditInvoiceModal({ facture, user, onClose, onSaved }) {
     'min-h-[44px] w-full border border-slate-300 rounded-lg px-3 text-[15px] outline-none focus:ring-2 focus:ring-blue-500';
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-slate-900/40 flex items-end sm:items-center justify-center sm:p-4 z-50">
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-4"
+        className="bg-white shadow-xl w-full sm:max-w-3xl h-[92vh] sm:h-auto sm:max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-xl p-5 sm:p-6 space-y-5"
         role="dialog"
+        aria-modal="true"
         aria-label="Modifier la facture"
       >
-        <h3 className="text-lg font-semibold">Modifier la facture {facture.invoice_number || `FAC-${facture.id}`}</h3>
+        <h3 className="text-lg sm:text-xl font-semibold pr-8">Modifier la facture {facture.invoice_number || `FAC-${facture.id}`}</h3>
 
-        <label className="block text-sm font-semibold text-slate-700 max-w-md">
+        <label className="block text-sm font-semibold text-slate-700">
           Nom du client
           <input className={`${champ} mt-1`} value={client} required onChange={(e) => setClient(e.target.value)} />
         </label>
@@ -66,13 +67,13 @@ export default function EditInvoiceModal({ facture, user, onClose, onSaved }) {
         )}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="flex gap-2 justify-end">
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-2 sticky bottom-0 bg-white">
           <button type="button" onClick={onClose}
-            className="min-h-[44px] px-4 rounded-lg border border-slate-300 bg-white">
+            className="min-h-[44px] px-5 rounded-lg border border-slate-300 bg-white">
             Annuler
           </button>
           <button type="submit" disabled={saving || chargement}
-            className="min-h-[44px] px-4 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-semibold">
+            className="min-h-[44px] px-5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-semibold">
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
         </div>

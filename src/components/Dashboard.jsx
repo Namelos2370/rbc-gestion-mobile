@@ -90,81 +90,83 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen">
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 py-3 flex flex-wrap items-center gap-4 lg:gap-8 relative">
-        <button onClick={allerAccueil} aria-label="Retour à l'accueil"
-          className="flex items-center gap-3 rounded-lg min-h-[44px] hover:opacity-80">
-          <img src={logoRbc} alt="Logo RBC Business Center" className="w-11 h-11 object-contain" />
-          <span className="font-bold text-lg">RBC Gestion</span>
-        </button>
+      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-2 flex items-center gap-3">
+          <button onClick={allerAccueil} aria-label="Retour à l'accueil"
+            className="flex items-center gap-2 sm:gap-3 rounded-lg min-h-[44px] hover:opacity-80 min-w-0">
+            <img src={logoRbc} alt="Logo RBC Business Center" className="w-10 h-10 sm:w-11 sm:h-11 object-contain shrink-0" />
+            <span className="font-bold text-base sm:text-lg truncate">RBC Gestion</span>
+          </button>
 
-        <nav className="flex gap-1 flex-wrap">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <div className="relative">
+              <button onClick={() => setNotifOuverte(!notifOuverte)}
+                aria-label={`Notifications : ${alertes.length} facture(s) en attente depuis plus de ${JOURS_ALERTE} jours`}
+                className="relative min-h-[44px] min-w-[44px] rounded-lg border border-slate-300 bg-white flex items-center justify-center">
+                <Bell size={18} />
+                {alertes.length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
+                    {alertes.length}
+                  </span>
+                )}
+              </button>
+              {notifOuverte && (
+                <div className="absolute right-0 top-12 w-80 max-w-[85vw] bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-4">
+                  <p className="font-semibold mb-2">En attente depuis plus de {JOURS_ALERTE} jours</p>
+                  {alertes.length === 0 ? (
+                    <p className="text-sm text-slate-500">Aucune alerte</p>
+                  ) : (
+                    <ul className="space-y-2 max-h-72 overflow-y-auto">
+                      {alertes.map((f) => (
+                        <li key={f.id} className="text-sm border-t border-slate-100 pt-2">
+                          <p className="font-semibold">{numeroFacture(f)} · {f.client}</p>
+                          <p className="text-slate-500">{joursDepuis(f.created_at)} jours · {formatMontant(f.amount)}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <button onClick={() => { setOnglet('validation'); setNotifOuverte(false); }}
+                    className="mt-3 w-full min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+                    Ouvrir la validation
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => setOnglet('profile')} aria-label="Ouvrir Mon profil"
+              className="hidden sm:block text-right min-h-[44px] rounded-lg px-2 hover:bg-slate-100">
+              <p className="font-semibold text-sm">{user?.name || user?.email}</p>
+              <p className="text-xs text-slate-500">Mon profil</p>
+            </button>
+            <span className="hidden md:inline bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">
+              {user?.role}
+            </span>
+            <button onClick={logout} aria-label="Déconnexion"
+              className="min-h-[44px] min-w-[44px] sm:px-4 rounded-lg border border-slate-300 bg-white flex items-center justify-center gap-2 text-[15px]">
+              <LogOut size={16} /> <span className="hidden sm:inline">Déconnexion</span>
+            </button>
+          </div>
+        </div>
+
+        <nav className="max-w-6xl mx-auto px-2 sm:px-6 lg:px-8 pb-2 flex gap-1 overflow-x-auto">
           {ONGLETS.map((o) => (
             <button key={o.id} onClick={() => setOnglet(o.id)}
               aria-current={onglet === o.id ? 'page' : undefined}
-              className={`min-h-[44px] px-4 rounded-lg text-[15px] transition ${
+              className={`min-h-[44px] px-4 rounded-lg text-[15px] whitespace-nowrap shrink-0 transition ${
                 onglet === o.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-100'
               }`}>
               {o.label}
             </button>
           ))}
         </nav>
-
-        <div className="ml-auto flex items-center gap-3 flex-wrap">
-          <div className="relative">
-            <button onClick={() => setNotifOuverte(!notifOuverte)}
-              aria-label={`Notifications : ${alertes.length} facture(s) en attente depuis plus de ${JOURS_ALERTE} jours`}
-              className="relative min-h-[44px] min-w-[44px] rounded-lg border border-slate-300 bg-white flex items-center justify-center">
-              <Bell size={18} />
-              {alertes.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
-                  {alertes.length}
-                </span>
-              )}
-            </button>
-            {notifOuverte && (
-              <div className="absolute right-0 top-12 w-80 max-w-[90vw] bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-3">
-                <p className="font-semibold mb-2">En attente depuis plus de {JOURS_ALERTE} jours</p>
-                {alertes.length === 0 ? (
-                  <p className="text-sm text-slate-500">Aucune alerte</p>
-                ) : (
-                  <ul className="space-y-2 max-h-72 overflow-y-auto">
-                    {alertes.map((f) => (
-                      <li key={f.id} className="text-sm border-t border-slate-100 pt-2">
-                        <p className="font-semibold">{numeroFacture(f)} · {f.client}</p>
-                        <p className="text-slate-500">{joursDepuis(f.created_at)} jours · {formatMontant(f.amount)}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <button onClick={() => { setOnglet('validation'); setNotifOuverte(false); }}
-                  className="mt-3 w-full min-h-[44px] rounded-lg bg-blue-600 text-white font-semibold">
-                  Ouvrir la validation
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button onClick={() => setOnglet('profile')} aria-label="Ouvrir Mon profil"
-            className="text-right min-h-[44px] rounded-lg px-2 hover:bg-slate-100">
-            <p className="font-semibold text-sm">{user?.name || user?.email}</p>
-            <p className="text-xs text-slate-500">Mon profil</p>
-          </button>
-          <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">
-            {user?.role}
-          </span>
-          <button onClick={logout}
-            className="min-h-[44px] px-4 rounded-lg border border-slate-300 bg-white flex items-center gap-2 text-[15px]">
-            <LogOut size={16} /> Déconnexion
-          </button>
-        </div>
       </header>
 
-      <main className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6">
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <main className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-6xl mx-auto space-y-6 sm:space-y-8">
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {cartes.map((c) => (
-            <div key={c.label} className="bg-white border border-slate-200 rounded-xl p-5">
-              <p className="text-sm text-slate-500">{c.label}</p>
-              <p className="text-2xl sm:text-3xl font-bold mt-1 break-words">{c.valeur}</p>
+            <div key={c.label} className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col gap-1">
+              <p className="text-[13px] sm:text-sm text-slate-500 leading-snug">{c.label}</p>
+              <p className="text-xl sm:text-3xl font-bold break-words">{c.valeur}</p>
             </div>
           ))}
         </section>

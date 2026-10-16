@@ -70,7 +70,7 @@ export default function Batches({ user, onChange }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6">
         <h2 className="text-lg font-semibold mb-3">Générer un lot de proformas</h2>
         {error && <div className="mb-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>}
 
@@ -96,7 +96,7 @@ export default function Batches({ user, onChange }) {
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6">
         <h2 className="text-lg font-semibold mb-3">Historique des lots</h2>
         {lots.length === 0 ? (
           <p className="text-slate-500">Aucun lot généré</p>

@@ -14,9 +14,30 @@ body,
 
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
   background: #f4f6fa;
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Sur iPhone, un champ de moins de 16px déclenche un zoom automatique à la saisie */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+@media (min-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 15px;
+  }
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .zone-impression {
