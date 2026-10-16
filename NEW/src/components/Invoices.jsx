@@ -1,32 +1,86 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../config/supabase';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Pencil, Check, Download, Printer, Search } from 'lucide-react';
+import EditInvoiceModal from './EditInvoiceModal';
+import LignesFacture, { LIGNE_VIDE, totalLignes } from './LignesFacture';
+import FactureImprimable from './FactureImprimable';
+import { creerFacture, validerFacture, supprimerFacture, chargerLignes } from '../services/invoices';
+import { chargerEntreprise } from '../services/company';
+import { STATUS_LABEL, formatMontant, formatDate, numeroFacture, exporterCsv } from '../utils/format';
 
-export default function Invoices({ user }) {
+const champ =
+  'min-h-[44px] border border-slate-300 rounded-lg px-3 text-[15px] outline-none focus:ring-2 focus:ring-blue-500 bg-white';
+
+export default function Invoices({ user, onChange }) {
   const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    client: '',
-    service: '',
-    amount: '',
-  });
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [client, setClient] = useState('');
+  const [lignes, setLignes] = useState([{ ...LIGNE_VIDE }]);
+  const [filtres, setFiltres] = useState({ recherche: '', statut: 'tous', du: '', au: '' });
+  const [aImprimer, setAImprimer] = useState(null);
 
   useEffect(() => {
-    fetchInvoices();
+    charger();
   }, []);
 
-  const fetchInvoices = async () => {
+  const charger = async () => {
+    const { data, error: err } = await supabase
+      .from('invoices')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (err) return setError(err.message);
+    setInvoices(data || []);
+  };
+
+  const rafraichir = async () => {
+    await charger();
+    onChange?.();
+  };
+
+  // Lance l'impression : on charge les lignes et les coordonnées, puis on affiche le modèle
+  const imprimer = async (facture) => {
+    setError('');
     try {
-      setError('');
-      const { data, error: err } = await supabase
-        .from('invoices')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (err) throw err;
-      setInvoices(data || []);
+      const [lignesFacture, entreprise] = await Promise.all([chargerLignes(facture.id), chargerEntreprise()]);
+      setAImprimer({ facture, lignes: lignesFacture, entreprise });
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (!aImprimer) return;
+    const t = setTimeout(() => {
+      window.print();
+      setAImprimer(null);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [aImprimer]);
+
+  const filtrees = useMemo(() => {
+    const q = filtres.recherche.trim().toLowerCase();
+    return invoices.filter((f) => {
+      if (filtres.statut !== 'tous' && f.status !== filtres.statut) return false;
+      if (filtres.du && new Date(f.created_at) < new Date(filtres.du)) return false;
+      if (filtres.au && new Date(f.created_at) > new Date(filtres.au + 'T23:59:59')) return false;
+      if (q) {
+        const texte = `${numeroFacture(f)} ${f.client} ${f.service}`.toLowerCase();
+        if (!texte.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [invoices, filtres]);
+
+  const total = filtrees.reduce((s, f) => s + Number(f.amount), 0);
+
+  const action = async (fn) => {
+    setError('');
+    try {
+      await fn();
+      await rafraichir();
     } catch (err) {
       setError(err.message);
     }
@@ -34,154 +88,196 @@ export default function Invoices({ user }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setSaving(true);
     setError('');
-
     try {
-      const { error: err } = await supabase
-        .from('invoices')
-        .insert([
-          {
-            client: formData.client,
-            service: formData.service,
-            amount: parseFloat(formData.amount),
-            status: 'pending',
-            created_by: user?.id,
-          },
-        ]);
-
-      if (err) throw err;
-      
-      setFormData({ client: '', service: '', amount: '' });
+      await creerFacture(user, { client, lignes });
+      setClient('');
+      setLignes([{ ...LIGNE_VIDE }]);
       setShowForm(false);
-      await fetchInvoices();
+      await rafraichir();
     } catch (err) {
       setError(err.message);
     }
-    setLoading(false);
+    setSaving(false);
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Supprimer cette facture ?')) return;
-    
-    try {
-      const { error: err } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', id);
-      
-      if (err) throw err;
-      await fetchInvoices();
-    } catch (err) {
-      setError(err.message);
-    }
+  const exporterExcel = () => {
+    const lignesExport = [
+      ['N°', 'Date', 'Client', 'Service', 'Montant (F)', 'Statut'],
+      ...filtrees.map((f) => [
+        numeroFacture(f),
+        formatDate(f.created_at),
+        f.client,
+        f.service,
+        Math.round(Number(f.amount)),
+        STATUS_LABEL[f.status] || f.status,
+      ]),
+    ];
+    exporterCsv(`factures-RBC-${new Date().toISOString().slice(0, 10)}.csv`, lignesExport);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Gestion des factures</h2>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
-        >
-          <Plus size={18} />
-          Nouvelle facture
-        </button>
+    <div className="space-y-4">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="flex flex-wrap items-center gap-3 p-4 border-b border-slate-200">
+          <h2 className="text-lg font-semibold mr-auto">Liste des factures</h2>
+          <div className="no-print flex flex-wrap gap-2">
+            <button onClick={exporterExcel}
+              className="min-h-[44px] px-4 rounded-lg border border-slate-300 bg-white flex items-center gap-2 text-[15px]">
+              <Download size={16} /> Exporter Excel
+            </button>
+            <button onClick={() => setShowForm(!showForm)}
+              className="min-h-[44px] px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-2 text-[15px]">
+              <Plus size={16} /> Nouvelle facture
+            </button>
+          </div>
+        </div>
+
+        <div className="no-print flex flex-wrap items-end gap-3 p-4 border-b border-slate-200 bg-slate-50">
+          <label className="flex-1 min-w-[220px] relative">
+            <span className="sr-only">Rechercher une facture</span>
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={filtres.recherche} placeholder="Rechercher un client, un service ou un numéro"
+              onChange={(e) => setFiltres({ ...filtres, recherche: e.target.value })}
+              className={`${champ} w-full pl-9`} />
+          </label>
+          <select value={filtres.statut} onChange={(e) => setFiltres({ ...filtres, statut: e.target.value })}
+            aria-label="Filtrer par statut" className={champ}>
+            <option value="tous">Tous les statuts</option>
+            <option value="en_attente">En attente</option>
+            <option value="validee">Validées</option>
+          </select>
+          <label className="text-sm text-slate-600 flex flex-col">
+            Du
+            <input type="date" value={filtres.du} onChange={(e) => setFiltres({ ...filtres, du: e.target.value })} className={champ} />
+          </label>
+          <label className="text-sm text-slate-600 flex flex-col">
+            Au
+            <input type="date" value={filtres.au} onChange={(e) => setFiltres({ ...filtres, au: e.target.value })} className={champ} />
+          </label>
+          {(filtres.recherche || filtres.statut !== 'tous' || filtres.du || filtres.au) && (
+            <button onClick={() => setFiltres({ recherche: '', statut: 'tous', du: '', au: '' })}
+              className="min-h-[44px] px-3 text-blue-700 font-semibold">
+              Réinitialiser
+            </button>
+          )}
+        </div>
+
+        {showForm && (
+          <form onSubmit={handleSubmit} className="no-print p-4 border-b border-slate-200 bg-blue-50/40 space-y-4">
+            <p className="text-sm text-slate-600">
+              Le numéro, la date, la ville et les coordonnées de l'entreprise sont automatiques.
+            </p>
+            <label className="block text-sm font-semibold text-slate-700 max-w-md">
+              Nom du client
+              <input className={`${champ} mt-1 w-full`} value={client} required
+                onChange={(e) => setClient(e.target.value)} />
+            </label>
+            <LignesFacture lignes={lignes} onChange={setLignes} />
+            <div className="flex gap-2">
+              <button type="submit" disabled={saving}
+                className="min-h-[44px] px-5 rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-slate-400 text-white font-semibold">
+                {saving ? 'Création...' : 'Créer la facture'}
+              </button>
+              <button type="button" onClick={() => setShowForm(false)}
+                className="min-h-[44px] px-5 rounded-lg bg-slate-400 hover:bg-slate-500 text-white">
+                Annuler
+              </button>
+            </div>
+          </form>
+        )}
+
+        {error && <div className="m-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>}
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-[15px] min-w-[760px] border-collapse">
+            <thead>
+              <tr className="bg-slate-50 text-slate-600 text-left">
+                <th className="px-5 py-3 font-semibold">N°</th>
+                <th className="px-5 py-3 font-semibold">Client</th>
+                <th className="px-5 py-3 font-semibold">Service</th>
+                <th className="px-5 py-3 font-semibold text-right">Montant</th>
+                <th className="px-5 py-3 font-semibold">Statut</th>
+                <th className="px-5 py-3 font-semibold no-print">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtrees.length === 0 ? (
+                <tr><td colSpan={6} className="text-center text-slate-500 py-10">Aucune facture ne correspond aux filtres</td></tr>
+              ) : (
+                filtrees.map((f) => (
+                  <tr key={f.id} className="border-t border-slate-200">
+                    <td className="px-5 py-3.5">{numeroFacture(f)}</td>
+                    <td className="px-5 py-3.5">{f.client}</td>
+                    <td className="px-5 py-3.5">{f.service}</td>
+                    <td className="px-5 py-3.5 text-right whitespace-nowrap">{formatMontant(f.amount)}</td>
+                    <td className="px-5 py-3.5">
+                      <span className={`px-2.5 py-1 rounded-full text-[13px] font-semibold ${
+                        f.status === 'validee' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {STATUS_LABEL[f.status] || f.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 no-print">
+                      <div className="flex gap-2 flex-wrap">
+                        {f.status === 'en_attente' && (
+                          <button onClick={() => action(() => validerFacture(user, f))}
+                            className="min-h-[36px] px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm flex items-center gap-1">
+                            <Check size={14} /> Valider
+                          </button>
+                        )}
+                        <button onClick={() => setEditing(f)}
+                          className="min-h-[36px] px-3 rounded-md border border-slate-300 bg-white text-sm flex items-center gap-1">
+                          <Pencil size={14} /> Modifier
+                        </button>
+                        <button onClick={() => imprimer(f)}
+                          className="min-h-[36px] px-3 rounded-md border border-slate-300 bg-white text-sm flex items-center gap-1">
+                          <Printer size={14} /> Imprimer
+                        </button>
+                        <button onClick={() => {
+                            if (confirm('Supprimer cette facture ?')) action(() => supprimerFacture(user, f));
+                          }}
+                          aria-label={`Supprimer ${numeroFacture(f)}`}
+                          className="min-h-[36px] px-2 rounded-md text-red-600 hover:bg-red-50">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+            {filtrees.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-slate-300 font-semibold">
+                  <td colSpan={3} className="px-5 py-3">Total ({filtrees.length} facture{filtrees.length > 1 ? 's' : ''})</td>
+                  <td className="px-5 py-3 text-right whitespace-nowrap">{formatMontant(total)}</td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
       </div>
 
-      {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input
-              type="text"
-              placeholder="Client"
-              value={formData.client}
-              onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-              required
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-            <input
-              type="text"
-              placeholder="Service"
-              value={formData.service}
-              onChange={(e) => setFormData({ ...formData, service: e.target.value })}
-              required
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-            <input
-              type="number"
-              placeholder="Montant"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              required
-              step="0.01"
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-          
-          {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-          
-          <div className="flex gap-2 mt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg transition"
-            >
-              {loading ? 'Création...' : 'Créer'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition"
-            >
-              Annuler
-            </button>
-          </div>
-        </form>
+      {editing && (
+        <EditInvoiceModal
+          facture={editing}
+          user={user}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            rafraichir();
+          }}
+        />
       )}
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
+      {aImprimer && (
+        <div id="zone-facture" className="zone-impression">
+          <FactureImprimable facture={aImprimer.facture} lignes={aImprimer.lignes} entreprise={aImprimer.entreprise} />
         </div>
       )}
-
-      <div className="grid gap-4">
-        {invoices.length === 0 ? (
-          <p className="text-center text-gray-500 py-8">Aucune facture créée</p>
-        ) : (
-          invoices.map((invoice) => (
-            <div
-              key={invoice.id}
-              className="bg-white p-4 rounded-lg shadow hover:shadow-md transition"
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{invoice.client}</h3>
-                  <p className="text-sm text-gray-600">{invoice.service}</p>
-                  <p className="text-lg font-bold text-blue-600 mt-2">{invoice.amount.toFixed(2)} €</p>
-                </div>
-                <div className="text-right">
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                    invoice.status === 'validated'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {invoice.status === 'validated' ? 'Validée' : 'En attente'}
-                  </span>
-                  <button
-                    onClick={() => handleDelete(invoice.id)}
-                    className="ml-2 text-red-600 hover:text-red-800 p-1"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
     </div>
   );
 }

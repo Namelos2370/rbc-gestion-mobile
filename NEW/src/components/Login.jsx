@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import logoRbc from '../assets/logo-rbc.jpeg';
 
 export default function Login() {
   const [email, setEmail] = useState('super@rbc.local');
@@ -20,62 +21,43 @@ export default function Login() {
     setLoading(false);
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center text-gray-900 mb-8">RBC Gestion</h1>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              placeholder="super@rbc.local"
-            />
-          </div>
+  const champ =
+    'mt-1 min-h-[48px] w-full border border-slate-300 rounded-lg px-3.5 text-base outline-none focus:ring-2 focus:ring-blue-500';
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              placeholder="••••••••"
-            />
-          </div>
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-8 sm:p-10">
+        <div className="flex flex-col items-center gap-3 mb-7">
+          <img src={logoRbc} alt="Logo RBC Business Center" className="w-28 h-28 object-contain" />
+          <h1 className="text-2xl font-bold">RBC Gestion</h1>
+          <p className="text-slate-500 text-[15px]">Connectez-vous à votre espace</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <label className="text-sm font-semibold text-slate-700">
+            Adresse e-mail
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="vous@rbc.local" required className={champ} />
+          </label>
+          <label className="text-sm font-semibold text-slate-700">
+            Mot de passe
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••" required className={champ} />
+          </label>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <div role="alert" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition duration-200"
-          >
+          <button type="submit" disabled={loading}
+            className="min-h-[48px] mt-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-semibold text-base">
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-600 text-center">
-            <strong>Comptes de test :</strong><br/>
-            super@rbc.local<br/>
-            admin@rbc.local<br/>
-            employe@rbc.local<br/>
-            Mot de passe : password123
-          </p>
-        </div>
+        <p className="mt-6 text-center text-[13px] text-slate-500">Accès réservé au personnel autorisé</p>
       </div>
     </div>
   );

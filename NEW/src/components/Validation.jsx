@@ -1,198 +1,95 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Check, Edit2 } from 'lucide-react';
+import { Check, Pencil } from 'lucide-react';
+import EditInvoiceModal from './EditInvoiceModal';
+import { validerFacture } from '../services/invoices';
+import { formatMontant, numeroFacture, formatDate } from '../utils/format';
 
-export default function Validation({ user }) {
-  const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(false);
+export default function Validation({ user, onChange }) {
+  const [factures, setFactures] = useState([]);
   const [error, setError] = useState('');
-  const [editingId, setEditingId] = useState(null);
-  const [editData, setEditData] = useState({});
+  const [editing, setEditing] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetchPendingInvoices();
+    charger();
   }, []);
 
-  const fetchPendingInvoices = async () => {
-    try {
-      setError('');
-      const { data, error: err } = await supabase
-        .from('invoices')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-      
-      if (err) throw err;
-      setInvoices(data || []);
-    } catch (err) {
-      setError(err.message);
-    }
+  const charger = async () => {
+    const { data, error: err } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('status', 'en_attente')
+      .order('created_at', { ascending: false });
+    if (err) return setError(err.message);
+    setFactures(data || []);
   };
 
-  const handleValidate = async (invoiceId) => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const { error: err } = await supabase
-        .from('invoices')
-        .update({ status: 'validated' })
-        .eq('id', invoiceId);
-
-      if (err) throw err;
-
-      // Log in audit
-      await supabase
-        .from('audit_logs')
-        .insert([
-          {
-            user_id: user?.id,
-            action: 'validate_invoice',
-            details: `Facture ${invoiceId} validée`,
-          },
-        ]);
-
-      await fetchPendingInvoices();
-    } catch (err) {
-      setError(err.message);
-    }
-    setLoading(false);
+  const rafraichir = async () => {
+    await charger();
+    onChange?.();
   };
 
-  const handleEditSubmit = async (invoiceId) => {
-    setLoading(true);
+  const valider = async (facture) => {
+    setBusy(true);
     setError('');
-
     try {
-      const { error: err } = await supabase
-        .from('invoices')
-        .update(editData)
-        .eq('id', invoiceId);
-
-      if (err) throw err;
-
-      // Log in audit
-      await supabase
-        .from('audit_logs')
-        .insert([
-          {
-            user_id: user?.id,
-            action: 'edit_validated_invoice',
-            details: `Facture ${invoiceId} modifiée après validation`,
-          },
-        ]);
-
-      setEditingId(null);
-      setEditData({});
-      await fetchPendingInvoices();
+      await validerFacture(user, facture);
+      await rafraichir();
     } catch (err) {
       setError(err.message);
     }
-    setLoading(false);
+    setBusy(false);
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Validation des factures</h2>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
+    <div className="space-y-4">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-slate-200">
+          <h2 className="text-lg font-semibold">Factures à valider</h2>
         </div>
-      )}
 
-      <div className="grid gap-4">
-        {invoices.length === 0 ? (
-          <p className="text-center text-gray-500 py-8">Aucune facture à valider</p>
+        {error && <div className="m-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>}
+
+        {factures.length === 0 ? (
+          <p className="text-center text-slate-500 py-10">Aucune facture à valider</p>
         ) : (
-          invoices.map((invoice) => (
-            <div
-              key={invoice.id}
-              className="bg-white p-6 rounded-lg shadow hover:shadow-md transition"
-            >
-              {editingId === invoice.id ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <input
-                      type="text"
-                      value={editData.client || invoice.client}
-                      onChange={(e) =>
-                        setEditData({ ...editData, client: e.target.value })
-                      }
-                      className="px-4 py-2 border border-gray-300 rounded-lg outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={editData.service || invoice.service}
-                      onChange={(e) =>
-                        setEditData({ ...editData, service: e.target.value })
-                      }
-                      className="px-4 py-2 border border-gray-300 rounded-lg outline-none"
-                    />
-                    <input
-                      type="number"
-                      value={editData.amount || invoice.amount}
-                      onChange={(e) =>
-                        setEditData({ ...editData, amount: parseFloat(e.target.value) })
-                      }
-                      step="0.01"
-                      className="px-4 py-2 border border-gray-300 rounded-lg outline-none"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEditSubmit(invoice.id)}
-                      disabled={loading}
-                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition"
-                    >
-                      Enregistrer
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingId(null);
-                        setEditData({});
-                      }}
-                      className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition"
-                    >
-                      Annuler
-                    </button>
-                  </div>
+          <ul className="divide-y divide-slate-200">
+            {factures.map((f) => (
+              <li key={f.id} className="p-4 flex flex-wrap items-center gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <p className="font-semibold">{f.client}</p>
+                  <p className="text-sm text-slate-600">{f.service}</p>
+                  <p className="text-sm text-slate-500">{numeroFacture(f)} · {formatDate(f.created_at)}</p>
                 </div>
-              ) : (
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{invoice.client}</h3>
-                    <p className="text-sm text-gray-600">{invoice.service}</p>
-                    <p className="text-lg font-bold text-blue-600 mt-2">
-                      {invoice.amount.toFixed(2)} €
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setEditingId(invoice.id);
-                        setEditData(invoice);
-                      }}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
-                    >
-                      <Edit2 size={16} />
-                      Modifier
-                    </button>
-                    <button
-                      onClick={() => handleValidate(invoice.id)}
-                      disabled={loading}
-                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
-                    >
-                      <Check size={16} />
-                      Valider
-                    </button>
-                  </div>
+                <p className="font-semibold whitespace-nowrap">{formatMontant(f.amount)}</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setEditing(f)}
+                    className="min-h-[44px] px-4 rounded-lg border border-slate-300 bg-white flex items-center gap-2">
+                    <Pencil size={16} /> Modifier
+                  </button>
+                  <button onClick={() => valider(f)} disabled={busy}
+                    className="min-h-[44px] px-4 rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-slate-400 text-white font-semibold flex items-center gap-2">
+                    <Check size={16} /> Valider
+                  </button>
                 </div>
-              )}
-            </div>
-          ))
+              </li>
+            ))}
+          </ul>
         )}
       </div>
+
+      {editing && (
+        <EditInvoiceModal
+          facture={editing}
+          user={user}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            rafraichir();
+          }}
+        />
+      )}
     </div>
   );
 }
