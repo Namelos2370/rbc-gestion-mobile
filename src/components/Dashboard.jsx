@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [alertes, setAlertes] = useState([]);
   const [notifOuverte, setNotifOuverte] = useState(false);
   const [menuLogoOuvert, setMenuLogoOuvert] = useState(false);
+  const estAdmin = ['admin', 'super_admin'].includes(user?.role);
 
   const choisirDansMenu = (id) => {
     setOnglet(id);
@@ -70,6 +71,13 @@ export default function Dashboard() {
   }, [onglet]);
 
   const contenu = () => {
+    if (!estAdmin && (onglet === 'validation' || onglet === 'audit' || onglet === 'batches')) {
+      return (
+        <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          Accès réservé aux administrateurs
+        </p>
+      );
+    }
     switch (onglet) {
       case 'invoices':
         return <Invoices user={user} onChange={chargerStats} />;
@@ -113,7 +121,7 @@ export default function Dashboard() {
             </button>
             {menuLogoOuvert && (
               <ul role="menu" className="absolute left-0 top-full mt-2 w-64 max-w-[85vw] bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-2">
-                {MENU_LOGO.filter((m) => !m.superAdmin || user?.role === 'super_admin').map((m) => (
+                {MENU_LOGO.filter((m) => (estAdmin || m.id === 'invoices' || m.id === 'profile') && (!m.superAdmin || user?.role === 'super_admin')).map((m) => (
                   <li key={m.id} role="none">
                     <button role="menuitem" onClick={() => choisirDansMenu(m.id)}
                       className={`w-full text-left min-h-[44px] px-3 rounded-lg transition ${
@@ -154,10 +162,12 @@ export default function Dashboard() {
                       ))}
                     </ul>
                   )}
-                  <button onClick={() => { setOnglet('validation'); setNotifOuverte(false); }}
-                    className="mt-3 w-full min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold">
-                    Ouvrir la validation
-                  </button>
+                  {estAdmin && (
+                    <button onClick={() => { setOnglet('validation'); setNotifOuverte(false); }}
+                      className="mt-3 w-full min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+                      Ouvrir la validation
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -178,7 +188,7 @@ export default function Dashboard() {
         </div>
 
         <nav className="max-w-6xl mx-auto px-2 sm:px-6 lg:px-8 pb-2 flex gap-1 overflow-x-auto">
-          {ONGLETS.map((o) => (
+          {ONGLETS.filter((o) => estAdmin || o.id === 'invoices').map((o) => (
             <button key={o.id} onClick={() => setOnglet(o.id)}
               aria-current={onglet === o.id ? 'page' : undefined}
               className={`min-h-[44px] px-4 rounded-lg text-[15px] whitespace-nowrap shrink-0 transition ${

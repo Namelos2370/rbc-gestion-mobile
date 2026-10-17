@@ -24,6 +24,7 @@ export default function Invoices({ user, onChange }) {
   const [lignes, setLignes] = useState([{ ...LIGNE_VIDE }]);
   const [filtres, setFiltres] = useState({ recherche: '', statut: 'tous', du: '', au: '' });
   const [aImprimer, setAImprimer] = useState(null);
+  const estAdmin = ['admin', 'super_admin'].includes(user?.role);
 
   useEffect(() => {
     charger();
@@ -124,25 +125,29 @@ export default function Invoices({ user, onChange }) {
   // Boutons d'action d'une facture, partagés entre la vue tableau et la vue cartes
   const actionsFacture = (f) => (
     <>
-      {f.status === 'en_attente' && (
+      {estAdmin && f.status === 'en_attente' && (
         <button onClick={() => action(() => validerFacture(user, f))}
           className={`${bouton} bg-blue-600 hover:bg-blue-700 text-white`}>
           <Check size={14} /> Valider
         </button>
       )}
-      <button onClick={() => setEditing(f)} className={`${bouton} border border-slate-300 bg-white`}>
-        <Pencil size={14} /> Modifier
-      </button>
+      {(estAdmin || f.status === 'en_attente') && (
+        <button onClick={() => setEditing(f)} className={`${bouton} border border-slate-300 bg-white`}>
+          <Pencil size={14} /> Modifier
+        </button>
+      )}
       <button onClick={() => imprimer(f)} className={`${bouton} border border-slate-300 bg-white`}>
         <Printer size={14} /> Imprimer
       </button>
-      <button onClick={() => {
-          if (confirm('Supprimer cette facture ?')) action(() => supprimerFacture(user, f));
-        }}
-        aria-label={`Supprimer ${numeroFacture(f)}`}
-        className={`${bouton} text-red-600 hover:bg-red-50`}>
-        <Trash2 size={16} />
-      </button>
+      {estAdmin && (
+        <button onClick={() => {
+            if (confirm('Supprimer cette facture ?')) action(() => supprimerFacture(user, f));
+          }}
+          aria-label={`Supprimer ${numeroFacture(f)}`}
+          className={`${bouton} text-red-600 hover:bg-red-50`}>
+          <Trash2 size={16} />
+        </button>
+      )}
     </>
   );
 
@@ -160,10 +165,12 @@ export default function Invoices({ user, onChange }) {
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:p-5 border-b border-slate-200">
           <h2 className="text-lg sm:text-xl font-semibold sm:mr-auto">Liste des factures</h2>
           <div className="no-print grid grid-cols-2 sm:flex gap-2">
-            <button onClick={exporterExcel}
-              className="min-h-[44px] px-4 rounded-lg border border-slate-300 bg-white flex items-center justify-center gap-2 text-[15px]">
-              <Download size={16} /> Excel
-            </button>
+            {estAdmin && (
+              <button onClick={exporterExcel}
+                className="min-h-[44px] px-4 rounded-lg border border-slate-300 bg-white flex items-center justify-center gap-2 text-[15px]">
+                <Download size={16} /> Excel
+              </button>
+            )}
             <button onClick={() => setShowForm(!showForm)}
               className="min-h-[44px] px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center justify-center gap-2 text-[15px]">
               <Plus size={16} /> Nouvelle facture
