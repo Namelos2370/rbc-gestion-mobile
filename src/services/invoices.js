@@ -191,3 +191,14 @@ export async function encaisserFacture(user, facture) {
   });
   return data[0];
 }
+
+// Liste des factures validées (encaissées ou non) pour l'espace caissier.
+export async function chargerFacturesCaisse() {
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('status', 'validee')
+    .order('validated_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
