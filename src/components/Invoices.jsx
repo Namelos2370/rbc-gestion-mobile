@@ -153,9 +153,9 @@ export default function Invoices({ user, onChange }) {
 
   const badgeStatut = (f) => (
     <span className={`px-2.5 py-1 rounded-full text-[13px] font-semibold whitespace-nowrap ${
-      f.status === 'validee' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+      f.paid_at ? 'bg-blue-100 text-blue-800' : f.status === 'validee' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
     }`}>
-      {STATUS_LABEL[f.status] || f.status}
+      {f.paid_at ? 'Encaissée' : STATUS_LABEL[f.status] || f.status}
     </span>
   );
 

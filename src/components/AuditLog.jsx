@@ -10,6 +10,7 @@ const LIBELLES = {
   delete_invoice: 'Facture supprimée',
   create_invoice: 'Facture créée',
   create_batch: 'Lot de proformas créé',
+  encaisser_facture: 'Facture encaissée',
 };
 
 // Libellés des champs enregistrés dans le journal

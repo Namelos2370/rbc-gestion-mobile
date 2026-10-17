@@ -8,6 +8,7 @@ import Batches from './Batches';
 import AuditLog from './AuditLog';
 import Profile from './Profile';
 import Proformas from './Proformas';
+import Caisse from './Caisse';
 import { formatMontant, joursDepuis, numeroFacture } from '../utils/format';
 import logoRbc from '../assets/logo-rbc.jpeg';
 
@@ -19,6 +20,7 @@ const ONGLETS = [
   { id: 'proformas', label: 'Proformas', superAdmin: true },
   { id: 'batches', label: 'Lots Excel', superAdmin: true },
   { id: 'audit', label: 'Audit' },
+  { id: 'caisse', label: 'Encaissement', caissier: true },
 ];
 
 // Menu déroulant ouvert en cliquant sur le logo
@@ -28,8 +30,11 @@ const MENU_LOGO = [
   { id: 'proformas', label: 'Proformas', superAdmin: true },
   { id: 'batches', label: 'Lots Excel', superAdmin: true },
   { id: 'audit', label: "Journal d'audit" },
+  { id: 'caisse', label: 'Encaissement', caissier: true },
   { id: 'profile', label: 'Mon profil' },
 ];
+
+const LIBELLES_ROLE = { super_admin: 'Super admin', admin: 'Admin', employe: 'Employé', caissier: 'Caissier' };
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -39,6 +44,20 @@ export default function Dashboard() {
   const [notifOuverte, setNotifOuverte] = useState(false);
   const [menuLogoOuvert, setMenuLogoOuvert] = useState(false);
   const estAdmin = ['admin', 'super_admin'].includes(user?.role);
+  const estCaissier = user?.role === 'caissier';
+  // Le caissier n'a qu'un seul espace (l'encaissement) ; son profil reste accessible
+  const ongletActif = estCaissier && onglet !== 'profile' ? 'caisse' : onglet;
+
+  const ongletVisible = (o) => {
+    if (estCaissier) return !!o.caissier;
+    return !o.caissier && (!o.superAdmin || user?.role === 'super_admin') && (estAdmin || o.id === 'invoices');
+  };
+
+  const menuVisible = (m) => {
+    if (estCaissier) return !!m.caissier || m.id === 'profile';
+    if (m.caissier) return false;
+    return (estAdmin || m.id === 'invoices' || m.id === 'profile') && (!m.superAdmin || user?.role === 'super_admin');
+  };
 
   const choisirDansMenu = (id) => {
     setOnglet(id);
@@ -70,18 +89,26 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    chargerStats();
-  }, [onglet]);
+    if (!estCaissier) chargerStats();
+  }, [onglet, estCaissier]);
 
   const contenu = () => {
-    if (!estAdmin && (onglet === 'validation' || onglet === 'audit' || onglet === 'batches' || onglet === 'proformas')) {
+    if (!estAdmin && !estCaissier && (onglet === 'validation' || onglet === 'audit' || onglet === 'batches' || onglet === 'proformas')) {
       return (
         <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           Accès réservé aux administrateurs
         </p>
       );
     }
-    switch (onglet) {
+    switch (ongletActif) {
+      case 'caisse':
+        return estCaissier || user?.role === 'super_admin' ? (
+          <Caisse user={user} />
+        ) : (
+          <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            Accès réservé au caissier
+          </p>
+        );
       case 'invoices':
         return <Invoices user={user} onChange={chargerStats} />;
       case 'validation':
@@ -132,11 +159,11 @@ export default function Dashboard() {
             </button>
             {menuLogoOuvert && (
               <ul role="menu" className="absolute left-0 top-full mt-2 w-64 max-w-[85vw] bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-2">
-                {MENU_LOGO.filter((m) => (estAdmin || m.id === 'invoices' || m.id === 'profile') && (!m.superAdmin || user?.role === 'super_admin')).map((m) => (
+                {MENU_LOGO.filter((m) => menuVisible(m)).map((m) => (
                   <li key={m.id} role="none">
                     <button role="menuitem" onClick={() => choisirDansMenu(m.id)}
                       className={`w-full text-left min-h-[44px] px-3 rounded-lg transition ${
-                        onglet === m.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
+                        ongletActif === m.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
                       }`}>
                       {m.label}
                     </button>
@@ -189,7 +216,7 @@ export default function Dashboard() {
               <p className="text-xs text-slate-500">Mon profil</p>
             </button>
             <span className="hidden md:inline bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">
-              {user?.role}
+              {LIBELLES_ROLE[user?.role] || user?.role}
             </span>
             <button onClick={logout} aria-label="Déconnexion"
               className="min-h-[44px] min-w-[44px] sm:px-4 rounded-lg border border-slate-300 bg-white flex items-center justify-center gap-2 text-[15px]">
@@ -199,11 +226,11 @@ export default function Dashboard() {
         </div>
 
         <nav className="max-w-6xl mx-auto px-2 sm:px-6 lg:px-8 pb-2 flex gap-1 overflow-x-auto">
-          {ONGLETS.filter((o) => (!o.superAdmin || user?.role === 'super_admin') && (estAdmin || o.id === 'invoices')).map((o) => (
+          {ONGLETS.filter((o) => ongletVisible(o)).map((o) => (
             <button key={o.id} onClick={() => setOnglet(o.id)}
-              aria-current={onglet === o.id ? 'page' : undefined}
+              aria-current={ongletActif === o.id ? 'page' : undefined}
               className={`min-h-[44px] px-4 rounded-lg text-[15px] whitespace-nowrap shrink-0 transition ${
-                onglet === o.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-100'
+                ongletActif === o.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-100'
               }`}>
               {o.label}
             </button>
@@ -212,14 +239,16 @@ export default function Dashboard() {
       </header>
 
       <main className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-6xl mx-auto space-y-6 sm:space-y-8">
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {cartes.map((c) => (
-            <div key={c.label} className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col gap-1">
-              <p className="text-[13px] sm:text-sm text-slate-500 leading-snug">{c.label}</p>
-              <p className="text-xl sm:text-3xl font-bold break-words">{c.valeur}</p>
-            </div>
-          ))}
-        </section>
+        {!estCaissier && (
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {cartes.map((c) => (
+              <div key={c.label} className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col gap-1">
+                <p className="text-[13px] sm:text-sm text-slate-500 leading-snug">{c.label}</p>
+                <p className="text-xl sm:text-3xl font-bold break-words">{c.valeur}</p>
+              </div>
+            ))}
+          </section>
+        )}
 
         {contenu()}
       </main>

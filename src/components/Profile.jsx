@@ -7,7 +7,7 @@ const champ =
 // Champs longs : prennent toute la largeur du formulaire
 const CHAMPS_LARGES = ['company_address', 'company_footer'];
 
-const LIBELLES_ROLE = { super_admin: 'Super administrateur', admin: 'Administrateur', employee: 'Employé' };
+const LIBELLES_ROLE = { super_admin: 'Super administrateur', admin: 'Administrateur', employe: 'Employé', employee: 'Employé', caissier: 'Caissier' };
 
 export default function Profile({ user }) {
   const estSuperAdmin = user?.role === 'super_admin';

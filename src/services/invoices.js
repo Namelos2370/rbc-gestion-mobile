@@ -151,3 +151,43 @@ export async function supprimerFacture(user, facture) {
     before: { client: facture.client, service: facture.service, amount: facture.amount, status: facture.status },
   });
 }
+
+// Recherche d'une facture validée par son numéro (FAC-001, ou simplement 1 / 001).
+// Le caissier ne voit que les factures validées : la base renvoie rien pour les autres.
+export async function chercherFactureValidee(saisie) {
+  const texte = String(saisie || '').trim().toUpperCase();
+  if (!texte) throw new Error('Saisissez le numéro de la facture.');
+
+  const numero = /^\d+$/.test(texte)
+    ? `FAC-${texte.padStart(3, '0')}`
+    : texte.startsWith('FAC-') ? texte : `FAC-${texte}`;
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('invoice_number', numero)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error(`Aucune facture validée ne porte le numéro ${numero}.`);
+  return data;
+}
+
+// Confirme l'encaissement d'une facture validée. Une facture ne peut être encaissée qu'une fois.
+export async function encaisserFacture(user, facture) {
+  const { data, error } = await supabase
+    .from('invoices')
+    .update({ paid_at: new Date().toISOString(), paid_by: user?.id })
+    .eq('id', facture.id)
+    .is('paid_at', null)
+    .select();
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error('Cette facture est déjà encaissée.');
+
+  await logAudit(user, {
+    entityType: 'invoice',
+    entityId: facture.id,
+    action: 'encaisser_facture',
+    after: { invoice_number: facture.invoice_number, client: facture.client, total: facture.amount },
+  });
+  return data[0];
+}
