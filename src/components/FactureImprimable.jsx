@@ -9,7 +9,7 @@ const dateFacture = (valeur) =>
 
 // Mise en page de la facture imprimée, d'après le modèle validé.
 // Les coordonnées viennent de « Mon profil » ; le numéro, la date et le total sont calculés.
-export default function FactureImprimable({ facture, lignes, entreprise }) {
+export default function FactureImprimable({ facture, lignes, entreprise, titre = 'FACTURE', avecSignatureClient = false }) {
   const total = lignes.reduce((s, l) => s + Number(l.total_price ?? Number(l.quantity) * Number(l.unit_price)), 0);
   const lignesAffichees = [...lignes, ...Array(Math.max(0, 4 - lignes.length)).fill(null)];
   const ville = (entreprise.company_location || '').split(',')[0] || 'Yaoundé';
@@ -32,7 +32,7 @@ export default function FactureImprimable({ facture, lignes, entreprise }) {
       </div>
 
       <h1 style={{ margin: '22px 0 0', textAlign: 'center', fontSize: 24, textDecoration: 'underline', letterSpacing: 1 }}>
-        FACTURE N° {numeroFacture(facture)}
+        {titre} N° {numeroFacture(facture)}
       </h1>
 
       <div style={{ marginTop: 26, fontSize: 17 }}>
@@ -72,7 +72,14 @@ export default function FactureImprimable({ facture, lignes, entreprise }) {
         <span style={{ fontWeight: 700 }}>{montantEnLettres(total)} francs CFA.</span>
       </p>
 
-      <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ marginTop: 'auto', display: 'flex', justifyContent: avecSignatureClient ? 'space-between' : 'flex-end', gap: 24 }}>
+        {avecSignatureClient && (
+          <div style={{ width: 260, textAlign: 'center' }}>
+            <div style={{ fontSize: 17, fontWeight: 700, textDecoration: 'underline' }}>Le client</div>
+            <div style={{ height: 120, borderBottom: '1px dashed #9ca3af', marginTop: 8 }} />
+            <p style={{ margin: '6px 0 0', ...enTete, fontSize: 11, color: '#6b7280' }}>Lu et approuvé, signature</p>
+          </div>
+        )}
         <div style={{ width: 260, textAlign: 'center' }}>
           <div style={{ fontSize: 17, fontWeight: 700, textDecoration: 'underline' }}>
             {entreprise.company_director || 'La Direction'}

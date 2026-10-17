@@ -7,6 +7,7 @@ import Validation from './Validation';
 import Batches from './Batches';
 import AuditLog from './AuditLog';
 import Profile from './Profile';
+import Proformas from './Proformas';
 import { formatMontant, joursDepuis, numeroFacture } from '../utils/format';
 import logoRbc from '../assets/logo-rbc.jpeg';
 
@@ -15,7 +16,8 @@ const JOURS_ALERTE = 3;
 const ONGLETS = [
   { id: 'invoices', label: 'Factures' },
   { id: 'validation', label: 'Validation' },
-  { id: 'batches', label: 'Proformas' },
+  { id: 'proformas', label: 'Proformas', superAdmin: true },
+  { id: 'batches', label: 'Lots Excel', superAdmin: true },
   { id: 'audit', label: 'Audit' },
 ];
 
@@ -23,7 +25,8 @@ const ONGLETS = [
 const MENU_LOGO = [
   { id: 'invoices', label: 'Accueil · Factures' },
   { id: 'validation', label: 'Validation des factures' },
-  { id: 'batches', label: 'Proformas', superAdmin: true },
+  { id: 'proformas', label: 'Proformas', superAdmin: true },
+  { id: 'batches', label: 'Lots Excel', superAdmin: true },
   { id: 'audit', label: "Journal d'audit" },
   { id: 'profile', label: 'Mon profil' },
 ];
@@ -71,7 +74,7 @@ export default function Dashboard() {
   }, [onglet]);
 
   const contenu = () => {
-    if (!estAdmin && (onglet === 'validation' || onglet === 'audit' || onglet === 'batches')) {
+    if (!estAdmin && (onglet === 'validation' || onglet === 'audit' || onglet === 'batches' || onglet === 'proformas')) {
       return (
         <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           Accès réservé aux administrateurs
@@ -86,6 +89,14 @@ export default function Dashboard() {
       case 'batches':
         return user?.role === 'super_admin' ? (
           <Batches user={user} onChange={chargerStats} />
+        ) : (
+          <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            Accès réservé aux super administrateurs
+          </p>
+        );
+      case 'proformas':
+        return user?.role === 'super_admin' ? (
+          <Proformas user={user} />
         ) : (
           <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             Accès réservé aux super administrateurs
@@ -188,7 +199,7 @@ export default function Dashboard() {
         </div>
 
         <nav className="max-w-6xl mx-auto px-2 sm:px-6 lg:px-8 pb-2 flex gap-1 overflow-x-auto">
-          {ONGLETS.filter((o) => estAdmin || o.id === 'invoices').map((o) => (
+          {ONGLETS.filter((o) => (!o.superAdmin || user?.role === 'super_admin') && (estAdmin || o.id === 'invoices')).map((o) => (
             <button key={o.id} onClick={() => setOnglet(o.id)}
               aria-current={onglet === o.id ? 'page' : undefined}
               className={`min-h-[44px] px-4 rounded-lg text-[15px] whitespace-nowrap shrink-0 transition ${
