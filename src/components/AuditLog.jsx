@@ -1,16 +1,58 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ClipboardList } from 'lucide-react';
+import { formatMontant } from '../utils/format';
 
 const LIBELLES = {
-  validate_invoice: 'Validation de facture',
-  edit_invoice: 'Modification de facture',
-  edit_validated_invoice: 'Modification après validation',
-  delete_invoice: 'Suppression de facture',
-  create_batch: 'Création de lot de proformas',
+  validate_invoice: 'Facture validée',
+  edit_invoice: 'Facture modifiée',
+  edit_validated_invoice: 'Facture validée modifiée',
+  delete_invoice: 'Facture supprimée',
+  create_invoice: 'Facture créée',
+  create_batch: 'Lot de proformas créé',
 };
 
-const formatValeur = (v) => (v ? JSON.stringify(v) : '');
+// Libellés des champs enregistrés dans le journal
+const CHAMPS = {
+  invoice_number: 'Numéro',
+  client: 'Client',
+  total: 'Total',
+  amount: 'Montant',
+  batch_number: 'Numéro de lot',
+  invoice_ids: 'Factures',
+  batch_id: 'Lot',
+};
+
+// Affiche les valeurs du journal en clair, sans JSON
+function valeursLisibles(valeur) {
+  if (!valeur) return [];
+  return Object.entries(valeur).map(([cle, val]) => {
+    let texte;
+    if (Array.isArray(val)) texte = `${val.length} élément(s)`;
+    else if (cle === 'total' || cle === 'amount') texte = formatMontant(val);
+    else if (cle === 'batch_id') texte = String(val).slice(0, 8);
+    else texte = String(val);
+    return { libelle: CHAMPS[cle] || cle, texte };
+  });
+}
+
+function Detail({ titre, valeur }) {
+  const lignes = valeursLisibles(valeur);
+  if (lignes.length === 0) return null;
+  return (
+    <div className="flex-1 min-w-[180px]">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">{titre}</p>
+      <dl className="text-sm space-y-0.5">
+        {lignes.map((l) => (
+          <div key={l.libelle} className="flex gap-2">
+            <dt className="text-slate-500">{l.libelle} :</dt>
+            <dd className="font-medium break-all">{l.texte}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
 
 export default function AuditLog() {
   const [logs, setLogs] = useState([]);
@@ -36,45 +78,45 @@ export default function AuditLog() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="flex items-center gap-3 p-4 border-b border-slate-200">
-          <h2 className="text-lg font-semibold mr-auto">Journal d'audit</h2>
-          <button onClick={charger} disabled={loading}
-            className="min-h-[44px] px-4 rounded-lg border border-slate-300 bg-white flex items-center gap-2">
-            <RefreshCw size={16} /> {loading ? 'Chargement...' : 'Rafraîchir'}
-          </button>
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+      <div className="flex flex-wrap items-center gap-3 p-4 sm:p-5 border-b border-slate-200">
+        <div className="flex items-center gap-2 mr-auto">
+          <ClipboardList size={20} className="text-blue-600" />
+          <h2 className="text-lg sm:text-xl font-semibold">Journal d'audit</h2>
         </div>
-
-        {error && <div className="m-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>}
-
-        {logs.length === 0 ? (
-          <p className="text-center text-slate-500 py-10">Aucune entrée dans le journal</p>
-        ) : (
-          <ul className="divide-y divide-slate-200">
-            {logs.map((log) => (
-              <li key={log.id} className="p-4">
-                <div className="flex flex-wrap justify-between gap-2">
-                  <p className="font-semibold">{LIBELLES[log.action] || log.action}</p>
-                  <p className="text-sm text-slate-500">
-                    {new Date(log.created_at).toLocaleString('fr-FR')}
-                  </p>
-                </div>
-                <p className="text-sm text-slate-600">
-                  {noms[log.user_id] || 'Utilisateur inconnu'} · {log.entity_type}
-                  {log.entity_type === 'invoice' ? ` #${log.entity_id}` : ''}
-                </p>
-                {(log.before_value || log.after_value) && (
-                  <p className="text-xs text-slate-500 mt-1 break-all">
-                    {log.before_value && <>Avant : {formatValeur(log.before_value)} </>}
-                    {log.after_value && <>Après : {formatValeur(log.after_value)}</>}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+        <button onClick={charger} disabled={loading}
+          className="min-h-[44px] px-4 rounded-lg border border-slate-300 bg-white flex items-center gap-2">
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> {loading ? 'Chargement...' : 'Rafraîchir'}
+        </button>
       </div>
+
+      {error && <div className="m-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>}
+
+      {logs.length === 0 ? (
+        <p className="text-center text-slate-500 py-12">Aucune entrée dans le journal</p>
+      ) : (
+        <ul className="divide-y divide-slate-200">
+          {logs.map((log) => (
+            <li key={log.id} className="p-4 sm:p-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <p className="font-semibold text-[15px]">{LIBELLES[log.action] || log.action}</p>
+                <time className="text-sm text-slate-500 whitespace-nowrap">
+                  {new Date(log.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                </time>
+              </div>
+              <p className="text-sm text-slate-600 mt-1">
+                Par <span className="font-medium text-slate-800">{noms[log.user_id] || 'Utilisateur inconnu'}</span>
+              </p>
+              {(log.before_value || log.after_value) && (
+                <div className="flex flex-wrap gap-x-8 gap-y-3 mt-3 bg-slate-50 rounded-lg p-3">
+                  <Detail titre="Avant" valeur={log.before_value} />
+                  <Detail titre="Après" valeur={log.after_value} />
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
