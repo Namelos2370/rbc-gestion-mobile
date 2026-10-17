@@ -55,7 +55,6 @@ export async function creerFacture(user, { client, lignes }) {
       designation: l.designation,
       quantity: l.quantite,
       unit_price: l.prix,
-      total_price: l.quantite * l.prix,
     }))
   );
   if (errLignes) {
@@ -128,7 +127,6 @@ export async function modifierFacture(user, facture, { client, lignes }) {
       designation: l.designation,
       quantity: l.quantite,
       unit_price: l.prix,
-      total_price: l.quantite * l.prix,
     }))
   );
   if (errAjout) throw errAjout;
