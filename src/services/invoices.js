@@ -1,5 +1,4 @@
 import { supabase } from '../config/supabase';
-import { chargerEntreprise } from './company';
 
 // Journal d'audit : colonnes réelles de la table audit_logs.
 // entity_id est un bigint non nul : les lots (uuid) sont journalisés avec entity_id = 0.
@@ -30,26 +29,15 @@ export function lignesValides(lignes) {
 
 const totalDesLignes = (lignes) => lignes.reduce((s, l) => s + l.quantite * l.prix, 0);
 
-// Numéro automatique : préfixe des coordonnées + année + rang (0001, 0002, ...)
-async function prochainNumero() {
-  const [entreprise, { count }] = await Promise.all([
-    chargerEntreprise(),
-    supabase.from('invoices').select('id', { count: 'exact', head: true }),
-  ]);
-  const prefixe = entreprise.invoice_prefix || 'FAC';
-  return `${prefixe}-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, '0')}`;
-}
-
 export async function creerFacture(user, { client, lignes }) {
   const lues = lignesValides(lignes);
   if (lues.length === 0) throw new Error('Ajoutez au moins une désignation avec un prix.');
 
-  const numero = await prochainNumero();
+  // Le numéro (invoice_number) est généré par la base à partir de l'identifiant : on ne l'envoie pas
   const { data: facture, error } = await supabase
     .from('invoices')
     .insert([
       {
-        invoice_number: numero,
         client,
         service: lues.map((l) => l.designation).join(', '),
         amount: totalDesLignes(lues),
@@ -80,7 +68,7 @@ export async function creerFacture(user, { client, lignes }) {
     entityType: 'invoice',
     entityId: facture.id,
     action: 'create_invoice',
-    after: { invoice_number: numero, client, total: totalDesLignes(lues) },
+    after: { invoice_number: facture.invoice_number, client, total: totalDesLignes(lues) },
   });
 }
 
