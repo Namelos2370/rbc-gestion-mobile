@@ -55,13 +55,16 @@ export default function Invoices({ user, onChange }) {
     }
   };
 
+  // Le modèle reste affiché jusqu'à la fin de l'aperçu d'impression (sinon la page peut sortir vierge)
   useEffect(() => {
     if (!aImprimer) return;
-    const t = setTimeout(() => {
-      window.print();
-      setAImprimer(null);
-    }, 150);
-    return () => clearTimeout(t);
+    const fin = () => setAImprimer(null);
+    window.addEventListener('afterprint', fin);
+    const t = setTimeout(() => window.print(), 300);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('afterprint', fin);
+    };
   }, [aImprimer]);
 
   const filtrees = useMemo(() => {

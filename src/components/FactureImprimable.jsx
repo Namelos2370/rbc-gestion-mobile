@@ -9,7 +9,11 @@ const dateFacture = (valeur) =>
 
 // Mise en page de la facture imprimée, d'après le modèle validé.
 // Les coordonnées viennent de « Mon profil » ; le numéro, la date et le total sont calculés.
-export default function FactureImprimable({ facture, lignes, entreprise, titre = 'FACTURE', avecSignatureClient = false }) {
+export default function FactureImprimable({ facture, lignes: lignesRecues, entreprise, titre = 'FACTURE', avecSignatureClient = false }) {
+  // Anciennes factures sans lignes détaillées : on affiche une ligne à partir du libellé et du montant enregistrés
+  const lignes = lignesRecues.length > 0
+    ? lignesRecues
+    : [{ designation: facture.service || 'Prestation', quantity: 1, unit_price: facture.amount }];
   const total = lignes.reduce((s, l) => s + Number(l.total_price ?? Number(l.quantity) * Number(l.unit_price)), 0);
   const lignesAffichees = [...lignes, ...Array(Math.max(0, 4 - lignes.length)).fill(null)];
   const ville = (entreprise.company_location || '').split(',')[0] || 'Yaoundé';

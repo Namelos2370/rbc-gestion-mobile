@@ -64,14 +64,22 @@ export default function Proformas({ user }) {
     try {
       const [items, entreprise] = await Promise.all([chargerLignesProforma(p.id), chargerEntreprise()]);
       setAImprimer({ proforma: p, lignes: items, entreprise });
-      setTimeout(() => {
-        window.print();
-        setAImprimer(null);
-      }, 150);
     } catch (err) {
       setError(err.message);
     }
   };
+
+  // Même logique que les factures : impression une fois le modèle affiché, retiré à la fin de l'aperçu
+  useEffect(() => {
+    if (!aImprimer) return;
+    const fin = () => setAImprimer(null);
+    window.addEventListener('afterprint', fin);
+    const t = setTimeout(() => window.print(), 300);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('afterprint', fin);
+    };
+  }, [aImprimer]);
 
   return (
     <div className="space-y-6">
