@@ -76,7 +76,7 @@ export default function Proformas({ user }) {
       };
       imprimerDansFenetre(
         fenetre,
-        <FactureImprimable facture={facture} lignes={items} entreprise={entreprise} titre="PROFORMA" avecSignatureClient />,
+        <FactureImprimable facture={facture} lignes={items} entreprise={entreprise} titre="PROFORMA" />,
         p.proforma_number
       );
     } catch (err) {
