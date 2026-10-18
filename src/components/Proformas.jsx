@@ -5,6 +5,7 @@ import FactureImprimable from './FactureImprimable';
 import { chargerEntreprise } from '../services/company';
 import { chargerProformas, chargerLignesProforma, creerProforma, supprimerProforma } from '../services/proformas';
 import { formatMontant, formatDate } from '../utils/format';
+import { ouvrirFenetreImpression, imprimerDansFenetre } from '../utils/imprimer';
 
 const champ =
   'mt-1.5 min-h-[44px] w-full border border-slate-300 rounded-lg px-3 text-[15px] outline-none focus:ring-2 focus:ring-blue-500 bg-white';
@@ -17,7 +18,6 @@ export default function Proformas({ user }) {
   const [saving, setSaving] = useState(false);
   const [client, setClient] = useState('');
   const [lignes, setLignes] = useState([{ ...LIGNE_VIDE }]);
-  const [aImprimer, setAImprimer] = useState(null);
 
   useEffect(() => {
     charger();
@@ -58,28 +58,32 @@ export default function Proformas({ user }) {
     }
   };
 
-  // Impression / PDF : on charge les lignes et les coordonnées, puis on affiche le modèle
+  // Impression / PDF : la fenêtre s'ouvre au clic, puis on y écrit la proforma une fois les données chargées
   const imprimer = async (p) => {
     setError('');
+    const fenetre = ouvrirFenetreImpression();
+    if (!fenetre) {
+      setError('Autorisez les fenêtres pop-up pour imprimer.');
+      return;
+    }
     try {
       const [items, entreprise] = await Promise.all([chargerLignesProforma(p.id), chargerEntreprise()]);
-      setAImprimer({ proforma: p, lignes: items, entreprise });
+      const facture = {
+        id: p.id,
+        invoice_number: p.proforma_number,
+        client: p.client,
+        created_at: p.created_at,
+      };
+      imprimerDansFenetre(
+        fenetre,
+        <FactureImprimable facture={facture} lignes={items} entreprise={entreprise} titre="PROFORMA" avecSignatureClient />,
+        p.proforma_number
+      );
     } catch (err) {
+      fenetre.close();
       setError(err.message);
     }
   };
-
-  // Même logique que les factures : impression une fois le modèle affiché, retiré à la fin de l'aperçu
-  useEffect(() => {
-    if (!aImprimer) return;
-    const fin = () => setAImprimer(null);
-    window.addEventListener('afterprint', fin);
-    const t = setTimeout(() => window.print(), 300);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener('afterprint', fin);
-    };
-  }, [aImprimer]);
 
   return (
     <div className="space-y-6">
@@ -149,17 +153,6 @@ export default function Proformas({ user }) {
         )}
       </div>
 
-      {aImprimer && (
-        <div id="zone-facture" className="zone-impression">
-          <FactureImprimable
-            facture={{ id: aImprimer.proforma.id, invoice_number: aImprimer.proforma.proforma_number, client: aImprimer.proforma.client, created_at: aImprimer.proforma.created_at }}
-            lignes={aImprimer.lignes}
-            entreprise={aImprimer.entreprise}
-            titre="PROFORMA"
-            avecSignatureClient
-          />
-        </div>
-      )}
     </div>
   );
 }

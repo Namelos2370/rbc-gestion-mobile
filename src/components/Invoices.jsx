@@ -7,6 +7,7 @@ import FactureImprimable from './FactureImprimable';
 import { creerFacture, validerFacture, supprimerFacture, chargerLignes } from '../services/invoices';
 import { chargerEntreprise } from '../services/company';
 import { STATUS_LABEL, formatMontant, formatDate, numeroFacture, exporterCsv } from '../utils/format';
+import { ouvrirFenetreImpression, imprimerDansFenetre } from '../utils/imprimer';
 
 const champ =
   'min-h-[44px] w-full border border-slate-300 rounded-lg px-3 text-[15px] outline-none focus:ring-2 focus:ring-blue-500 bg-white';
@@ -23,7 +24,6 @@ export default function Invoices({ user, onChange }) {
   const [client, setClient] = useState('');
   const [lignes, setLignes] = useState([{ ...LIGNE_VIDE }]);
   const [filtres, setFiltres] = useState({ recherche: '', statut: 'tous', du: '', au: '' });
-  const [aImprimer, setAImprimer] = useState(null);
   const estAdmin = ['admin', 'super_admin'].includes(user?.role);
 
   useEffect(() => {
@@ -44,28 +44,26 @@ export default function Invoices({ user, onChange }) {
     onChange?.();
   };
 
-  // Lance l'impression : on charge les lignes et les coordonnées, puis on affiche le modèle
+  // Impression : la fenêtre s'ouvre au clic, puis on y écrit la facture une fois les données chargées
   const imprimer = async (facture) => {
     setError('');
+    const fenetre = ouvrirFenetreImpression();
+    if (!fenetre) {
+      setError('Autorisez les fenêtres pop-up pour imprimer.');
+      return;
+    }
     try {
       const [lignesFacture, entreprise] = await Promise.all([chargerLignes(facture.id), chargerEntreprise()]);
-      setAImprimer({ facture, lignes: lignesFacture, entreprise });
+      imprimerDansFenetre(
+        fenetre,
+        <FactureImprimable facture={facture} lignes={lignesFacture} entreprise={entreprise} />,
+        numeroFacture(facture)
+      );
     } catch (err) {
+      fenetre.close();
       setError(err.message);
     }
   };
-
-  // Le modèle reste affiché jusqu'à la fin de l'aperçu d'impression (sinon la page peut sortir vierge)
-  useEffect(() => {
-    if (!aImprimer) return;
-    const fin = () => setAImprimer(null);
-    window.addEventListener('afterprint', fin);
-    const t = setTimeout(() => window.print(), 300);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener('afterprint', fin);
-    };
-  }, [aImprimer]);
 
   const filtrees = useMemo(() => {
     const q = filtres.recherche.trim().toLowerCase();
@@ -334,11 +332,6 @@ export default function Invoices({ user, onChange }) {
         />
       )}
 
-      {aImprimer && (
-        <div id="zone-facture" className="zone-impression">
-          <FactureImprimable facture={aImprimer.facture} lignes={aImprimer.lignes} entreprise={aImprimer.entreprise} />
-        </div>
-      )}
     </div>
   );
 }
