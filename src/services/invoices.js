@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { getFirmeActive, pourFirme } from './firme';
 
 // Journal d'audit : colonnes réelles de la table audit_logs.
 // entity_id est un bigint non nul : les lots (uuid) sont journalisés avec entity_id = 0.
@@ -6,6 +7,7 @@ export async function logAudit(user, { entityType, entityId, action, before = nu
   const { error } = await supabase.from('audit_logs').insert([
     {
       user_id: user?.id,
+      company_id: getFirmeActive(),
       entity_type: entityType,
       entity_id: entityId,
       action,
@@ -47,6 +49,7 @@ export async function creerFacture(user, { client, lignes }) {
         amount: totalDesLignes(lues),
         status: admin ? 'validee' : 'en_attente',
         employee_id: user?.id,
+        company_id: getFirmeActive(),
         validated_at: admin ? new Date().toISOString() : null,
         validated_by: admin ? user?.id : null,
       },
@@ -168,9 +171,7 @@ export async function chercherFactureValidee(saisie) {
     ? `FAC-${texte.padStart(3, '0')}`
     : texte.startsWith('FAC-') ? texte : `FAC-${texte}`;
 
-  const { data, error } = await supabase
-    .from('invoices')
-    .select('*')
+  const { data, error } = await pourFirme(supabase.from('invoices').select('*'))
     .eq('invoice_number', numero)
     .maybeSingle();
   if (error) throw error;
@@ -200,9 +201,7 @@ export async function encaisserFacture(user, facture) {
 
 // Liste des factures validées (encaissées ou non) pour l'espace caissier.
 export async function chargerFacturesCaisse() {
-  const { data, error } = await supabase
-    .from('invoices')
-    .select('*')
+  const { data, error } = await pourFirme(supabase.from('invoices').select('*'))
     .eq('status', 'validee')
     .order('validated_at', { ascending: false });
   if (error) throw error;

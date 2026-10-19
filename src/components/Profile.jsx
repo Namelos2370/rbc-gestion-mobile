@@ -9,7 +9,7 @@ const CHAMPS_LARGES = ['company_address', 'company_footer'];
 
 const LIBELLES_ROLE = { super_admin: 'Super administrateur', admin: 'Administrateur', employe: 'Employé', employee: 'Employé', caissier: 'Caissier' };
 
-export default function Profile({ user }) {
+export default function Profile({ user, firmeNom = '' }) {
   const estSuperAdmin = user?.role === 'super_admin';
   const [valeurs, setValeurs] = useState({});
   const [message, setMessage] = useState('');
@@ -57,7 +57,7 @@ export default function Profile({ user }) {
       {/* Coordonnées de l'entreprise */}
       <form onSubmit={enregistrer} className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-6">
         <div className="border-b border-slate-200 pb-4">
-          <h2 className="text-lg sm:text-xl font-semibold">Coordonnées de l'entreprise</h2>
+          <h2 className="text-lg sm:text-xl font-semibold">Coordonnées de {firmeNom || "l'entreprise"}</h2>
           <p className="text-sm text-slate-500 mt-1">
             Reprises automatiquement sur toutes les factures : vous n'avez pas à les ressaisir.
             {!estSuperAdmin && ' Seul un super administrateur peut les modifier.'}

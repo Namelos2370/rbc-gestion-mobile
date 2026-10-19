@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { logAudit } from './invoices';
+import { getFirmeActive, pourFirme } from './firme';
 
 // Lignes valides : désignation renseignée, quantité entière ≥ 1, prix ≥ 0
 export function lignesProformaValides(lignes) {
@@ -13,9 +14,7 @@ export function lignesProformaValides(lignes) {
 }
 
 export async function chargerProformas() {
-  const { data, error } = await supabase
-    .from('proformas')
-    .select('*')
+  const { data, error } = await pourFirme(supabase.from('proformas').select('*'))
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
@@ -39,7 +38,7 @@ export async function creerProforma(user, { client, lignes }) {
 
   const { data: proforma, error } = await supabase
     .from('proformas')
-    .insert([{ client, amount: montant, created_by: user?.id }])
+    .insert([{ client, amount: montant, created_by: user?.id, company_id: getFirmeActive() }])
     .select()
     .single();
   if (error) throw error;

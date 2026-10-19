@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
+import { pourFirme } from '../services/firme';
 import { Check, Pencil } from 'lucide-react';
 import EditInvoiceModal from './EditInvoiceModal';
 import { validerFacture } from '../services/invoices';
@@ -16,9 +17,7 @@ export default function Validation({ user, onChange }) {
   }, []);
 
   const charger = async () => {
-    const { data, error: err } = await supabase
-      .from('invoices')
-      .select('*')
+    const { data, error: err } = await pourFirme(supabase.from('invoices').select('*'))
       .eq('status', 'en_attente')
       .order('created_at', { ascending: false });
     if (err) return setError(err.message);

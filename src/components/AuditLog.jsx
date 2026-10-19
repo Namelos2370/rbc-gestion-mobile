@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
+import { pourFirme } from '../services/firme';
 import { RefreshCw, ClipboardList } from 'lucide-react';
 import { formatMontant } from '../utils/format';
 
@@ -69,7 +70,7 @@ export default function AuditLog() {
     setLoading(true);
     setError('');
     const [{ data: journal, error: e1 }, { data: profils, error: e2 }] = await Promise.all([
-      supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
+      pourFirme(supabase.from('audit_logs').select('*')).order('created_at', { ascending: false }).limit(100),
       supabase.from('profiles').select('id, name'),
     ]);
     if (e1 || e2) setError((e1 || e2).message);

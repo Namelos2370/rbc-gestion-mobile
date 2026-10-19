@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../config/supabase';
+import { pourFirme } from '../services/firme';
 import { Plus, Trash2, Pencil, Check, Download, Printer, Search, RotateCcw } from 'lucide-react';
 import EditInvoiceModal from './EditInvoiceModal';
 import LignesFacture, { LIGNE_VIDE } from './LignesFacture';
@@ -33,9 +34,7 @@ export default function Invoices({ user, onChange }) {
   }, []);
 
   const charger = async () => {
-    const { data, error: err } = await supabase
-      .from('invoices')
-      .select('*')
+    const { data, error: err } = await pourFirme(supabase.from('invoices').select('*'))
       .order('created_at', { ascending: false });
     if (err) return setError(err.message);
     setInvoices(data || []);

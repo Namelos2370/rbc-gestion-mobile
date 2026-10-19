@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { Download } from 'lucide-react';
 import { logAudit } from '../services/invoices';
+import { getFirmeActive, pourFirme } from '../services/firme';
 import { formatMontant, formatDate, numeroFacture, exporterCsv } from '../utils/format';
 
 export default function Batches({ user, onChange }) {
@@ -17,8 +18,8 @@ export default function Batches({ user, onChange }) {
 
   const charger = async () => {
     const [{ data: lotsData, error: e1 }, { data: facturesData, error: e2 }] = await Promise.all([
-      supabase.from('batches').select('*').order('created_at', { ascending: false }),
-      supabase.from('invoices').select('*'),
+      pourFirme(supabase.from('batches').select('*')).order('created_at', { ascending: false }),
+      pourFirme(supabase.from('invoices').select('*')),
     ]);
     if (e1 || e2) return setError((e1 || e2).message);
     setLots(lotsData || []);
@@ -38,7 +39,7 @@ export default function Batches({ user, onChange }) {
       const numero = `LOT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
       const { data, error: err } = await supabase
         .from('batches')
-        .insert([{ batch_number: numero, invoice_ids: selection, created_by: user?.id }])
+        .insert([{ batch_number: numero, invoice_ids: selection, created_by: user?.id, company_id: getFirmeActive() }])
         .select()
         .single();
       if (err) throw err;

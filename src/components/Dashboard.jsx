@@ -9,6 +9,8 @@ import AuditLog from './AuditLog';
 import Profile from './Profile';
 import Proformas from './Proformas';
 import Caisse from './Caisse';
+import ChoixFirme from './ChoixFirme';
+import { getFirmeActive, setFirmeActive, pourFirme, chargerFirmes } from '../services/firme';
 import { formatMontant, joursDepuis, numeroFacture } from '../utils/format';
 import logoRbc from '../assets/logo-rbc.jpeg';
 
@@ -45,6 +47,13 @@ const COULEURS_ROLE = {
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const estSuperAdmin = user?.role === 'super_admin';
+  // Super admin : la firme est choisie à l'écran d'entrée (gardée pour la session). Les autres : leur firme.
+  const [firmeChoisie, setFirmeChoisie] = useState(() => (estSuperAdmin ? getFirmeActive() : null));
+  const [firmes, setFirmes] = useState([]);
+  const firmeActive = estSuperAdmin ? firmeChoisie : user?.company_id ?? null;
+  if (firmeActive && getFirmeActive() !== Number(firmeActive)) setFirmeActive(firmeActive);
+  const firmeNom = firmes.find((f) => f.id === Number(firmeActive))?.name || '';
   const [onglet, setOnglet] = useState('invoices');
   const [stats, setStats] = useState({ enAttente: 0, validees: 0, lots: 0, totalMois: 0 });
   const [alertes, setAlertes] = useState([]);
@@ -76,8 +85,8 @@ export default function Dashboard() {
 
   const chargerStats = async () => {
     const [{ data: factures }, { count: nbLots }] = await Promise.all([
-      supabase.from('invoices').select('id, invoice_number, client, service, amount, status, created_at'),
-      supabase.from('batches').select('id', { count: 'exact', head: true }),
+      pourFirme(supabase.from('invoices').select('id, invoice_number, client, service, amount, status, created_at')),
+      pourFirme(supabase.from('batches').select('id', { count: 'exact', head: true })),
     ]);
     const liste = factures || [];
     const debutMois = new Date();
@@ -98,8 +107,35 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (!estCaissier) chargerStats();
-  }, [onglet, estCaissier]);
+    chargerFirmes().then(setFirmes).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!estCaissier && firmeActive) chargerStats();
+  }, [onglet, estCaissier, firmeActive]);
+
+  const choisirFirme = (id) => {
+    setFirmeActive(id);
+    setFirmeChoisie(id);
+    setOnglet('invoices');
+  };
+
+  const changerFirme = () => {
+    setFirmeActive(null);
+    setFirmeChoisie(null);
+    setMenuLogoOuvert(false);
+    setNotifOuverte(false);
+  };
+
+  const quitter = async () => {
+    setFirmeActive(null);
+    setFirmeChoisie(null);
+    await logout();
+  };
+
+  if (estSuperAdmin && !firmeChoisie) {
+    return <ChoixFirme onChoisir={choisirFirme} onDeconnexion={quitter} />;
+  }
 
   const contenu = () => {
     if (!estAdmin && !estCaissier && (onglet === 'validation' || onglet === 'audit' || onglet === 'batches' || onglet === 'proformas')) {
@@ -141,7 +177,7 @@ export default function Dashboard() {
       case 'audit':
         return <AuditLog />;
       case 'profile':
-        return <Profile user={user} />;
+        return <Profile user={user} firmeNom={firmeNom} />;
       default:
         return null;
     }
@@ -183,6 +219,16 @@ export default function Dashboard() {
           </div>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            {firmeNom && (
+              <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-semibold max-w-[120px] truncate">{firmeNom}</span>
+            )}
+            {estSuperAdmin && (
+              <button onClick={changerFirme} aria-label="Changer de firme"
+                className="min-h-[44px] px-3 rounded-lg border border-slate-300 bg-white text-sm whitespace-nowrap">
+                <span className="hidden sm:inline">Changer de firme</span>
+                <span className="sm:hidden">Firme</span>
+              </button>
+            )}
             <div className="relative">
               <button onClick={() => setNotifOuverte(!notifOuverte)}
                 aria-label={`Notifications : ${alertes.length} facture(s) en attente depuis plus de ${JOURS_ALERTE} jours`}
@@ -227,7 +273,7 @@ export default function Dashboard() {
             <span className={`hidden md:inline px-2.5 py-1 rounded-full text-xs font-semibold ${COULEURS_ROLE[user?.role] || 'bg-slate-100 text-slate-700'}`}>
               {LIBELLES_ROLE[user?.role] || user?.role}
             </span>
-            <button onClick={logout} aria-label="Déconnexion"
+            <button onClick={quitter} aria-label="Déconnexion"
               className="min-h-[44px] min-w-[44px] sm:px-4 rounded-lg border border-slate-300 bg-white flex items-center justify-center gap-2 text-[15px]">
               <LogOut size={16} /> <span className="hidden sm:inline">Déconnexion</span>
             </button>
@@ -247,7 +293,7 @@ export default function Dashboard() {
         </nav>
       </header>
 
-      <main className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-6xl mx-auto space-y-6 sm:space-y-8">
+      <main key={firmeActive ?? 'aucune'} className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-6xl mx-auto space-y-6 sm:space-y-8">
         {!estCaissier && (
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {cartes.map((c) => (

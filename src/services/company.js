@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { pourFirme } from './firme';
 
 // Coordonnées de l'entreprise, stockées dans la table settings (clé / valeur).
 export const CHAMPS_ENTREPRISE = [
@@ -13,9 +14,7 @@ export const CHAMPS_ENTREPRISE = [
 ];
 
 export async function chargerEntreprise() {
-  const { data, error } = await supabase
-    .from('settings')
-    .select('key, value')
+  const { data, error } = await pourFirme(supabase.from('settings').select('key, value'))
     .in('key', CHAMPS_ENTREPRISE.map((c) => c.key));
   if (error) throw error;
   return Object.fromEntries((data || []).map((r) => [r.key, r.value]));
@@ -23,10 +22,11 @@ export async function chargerEntreprise() {
 
 export async function enregistrerEntreprise(user, valeurs) {
   for (const { key } of CHAMPS_ENTREPRISE) {
-    const { error } = await supabase
-      .from('settings')
-      .update({ value: valeurs[key] ?? '', updated_by: user?.id, updated_at: new Date().toISOString() })
-      .eq('key', key);
+    const { error } = await pourFirme(
+      supabase
+        .from('settings')
+        .update({ value: valeurs[key] ?? '', updated_by: user?.id, updated_at: new Date().toISOString() })
+    ).eq('key', key);
     if (error) throw error;
   }
 }
