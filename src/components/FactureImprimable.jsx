@@ -9,7 +9,7 @@ const dateFacture = (valeur) =>
 
 // Mise en page de la facture imprimée, d'après le modèle validé.
 // Les coordonnées viennent de « Mon profil » ; le numéro, la date et le total sont calculés.
-export default function FactureImprimable({ facture, lignes: lignesRecues, entreprise, titre = 'FACTURE' }) {
+export default function FactureImprimable({ facture, lignes: lignesRecues, entreprise, titre = 'FACTURE', avecSignatureClient = false }) {
   // Anciennes factures sans lignes détaillées : on affiche une ligne à partir du libellé et du montant enregistrés
   const lignes = lignesRecues.length > 0
     ? lignesRecues
@@ -77,7 +77,14 @@ export default function FactureImprimable({ facture, lignes: lignesRecues, entre
         <span style={{ fontWeight: 700 }}>{montantEnLettres(total)} francs CFA.</span>
       </p>
 
-      <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end', gap: 24 }}>
+      <div style={{ marginTop: 'auto', display: 'flex', justifyContent: avecSignatureClient ? 'space-between' : 'flex-end', gap: 24 }}>
+        {avecSignatureClient && (
+          <div style={{ width: 260, textAlign: 'center' }}>
+            <div style={{ fontSize: 17, fontWeight: 700, textDecoration: 'underline' }}>Le client</div>
+            <div style={{ height: 120, borderBottom: '1px dashed #9ca3af', marginTop: 8 }} />
+            <p style={{ margin: '6px 0 0', ...enTete, fontSize: 11, color: '#6b7280' }}>Lu et approuvé, signature</p>
+          </div>
+        )}
         <div style={{ width: 260, textAlign: 'center' }}>
           <div style={{ fontSize: 17, fontWeight: 700, textDecoration: 'underline' }}>
             {entreprise.company_director || 'La Direction'}

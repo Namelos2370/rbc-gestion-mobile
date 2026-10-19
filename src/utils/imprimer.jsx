@@ -8,7 +8,8 @@ export function ouvrirFenetreImpression() {
 
 // Écrit uniquement le document dans la fenêtre et lance l'impression.
 // Le document n'a pas besoin de la feuille de style de l'application : il utilise des styles en ligne.
-export function imprimerDansFenetre(fenetre, element, titre) {
+// Par défaut format A4 ; pour un ticket, on passe une autre mise en page (ex. 80 mm).
+export function imprimerDansFenetre(fenetre, element, titre, { format = 'A4' } = {}) {
   const origine = window.location.origin;
   const html = renderToStaticMarkup(element).replace(/src="\//g, `src="${origine}/`);
 
@@ -20,7 +21,7 @@ export function imprimerDansFenetre(fenetre, element, titre) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${titre}</title>
   <style>
-    @page { size: A4; margin: 0; }
+    @page { size: ${format === 'ticket' ? '80mm auto' : 'A4'}; margin: ${format === 'ticket' ? '4mm' : '0'}; }
     html, body { margin: 0; padding: 0; background: #ffffff; }
   </style>
 </head>

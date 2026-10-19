@@ -8,6 +8,7 @@ import { creerFacture, validerFacture, supprimerFacture, chargerLignes } from '.
 import { chargerEntreprise } from '../services/company';
 import { STATUS_LABEL, formatMontant, formatDate, numeroFacture, exporterCsv } from '../utils/format';
 import { ouvrirFenetreImpression, imprimerDansFenetre } from '../utils/imprimer';
+import TicketCaisse from './TicketCaisse';
 
 const champ =
   'min-h-[44px] w-full border border-slate-300 rounded-lg px-3 text-[15px] outline-none focus:ring-2 focus:ring-blue-500 bg-white';
@@ -21,6 +22,7 @@ export default function Invoices({ user, onChange }) {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [choixImpression, setChoixImpression] = useState(null);
   const [client, setClient] = useState('');
   const [lignes, setLignes] = useState([{ ...LIGNE_VIDE }]);
   const [filtres, setFiltres] = useState({ recherche: '', statut: 'tous', du: '', au: '' });
@@ -44,8 +46,9 @@ export default function Invoices({ user, onChange }) {
     onChange?.();
   };
 
-  // Impression : la fenêtre s'ouvre au clic, puis on y écrit la facture une fois les données chargées
-  const imprimer = async (facture) => {
+  // Impression : la fenêtre s'ouvre au clic, puis on y écrit le document une fois les données chargées.
+  // mode : 'facture' | 'signature' (facture avec signature du client) | 'ticket' (ticket de caisse)
+  const imprimer = async (facture, mode = 'facture') => {
     setError('');
     const fenetre = ouvrirFenetreImpression();
     if (!fenetre) {
@@ -54,11 +57,10 @@ export default function Invoices({ user, onChange }) {
     }
     try {
       const [lignesFacture, entreprise] = await Promise.all([chargerLignes(facture.id), chargerEntreprise()]);
-      imprimerDansFenetre(
-        fenetre,
-        <FactureImprimable facture={facture} lignes={lignesFacture} entreprise={entreprise} />,
-        numeroFacture(facture)
-      );
+      const document = mode === 'ticket'
+        ? <TicketCaisse facture={facture} lignes={lignesFacture} entreprise={entreprise} />
+        : <FactureImprimable facture={facture} lignes={lignesFacture} entreprise={entreprise} avecSignatureClient={mode === 'signature'} />;
+      imprimerDansFenetre(fenetre, document, numeroFacture(facture), { format: mode === 'ticket' ? 'ticket' : 'A4' });
     } catch (err) {
       fenetre.close();
       setError(err.message);
@@ -137,7 +139,7 @@ export default function Invoices({ user, onChange }) {
           <Pencil size={14} /> Modifier
         </button>
       )}
-      <button onClick={() => imprimer(f)} className={`${bouton} border border-slate-300 bg-white`}>
+      <button onClick={() => setChoixImpression(f)} className={`${bouton} border border-slate-300 bg-white`}>
         <Printer size={14} /> Imprimer
       </button>
       {estAdmin && (
@@ -332,6 +334,36 @@ export default function Invoices({ user, onChange }) {
         />
       )}
 
+
+      {choixImpression && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-end sm:items-center justify-center sm:p-4 z-50" onClick={() => setChoixImpression(null)}>
+          <div role="dialog" aria-modal="true" aria-label="Choisir l'impression"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-xl p-5 space-y-3">
+            <h3 className="font-semibold text-lg">Imprimer {numeroFacture(choixImpression)}</h3>
+            {[
+              { mode: 'facture', titre: 'Facture', aide: 'Avec la signature de la direction' },
+              { mode: 'signature', titre: 'Facture à signer', aide: 'Avec la signature du client, si le client l\'exige' },
+              { mode: 'ticket', titre: 'Ticket de caisse', aide: 'Format court, sans signature' },
+            ].map((o) => (
+              <button key={o.mode} type="button"
+                onClick={() => {
+                  const f = choixImpression;
+                  setChoixImpression(null);
+                  imprimer(f, o.mode);
+                }}
+                className="w-full min-h-[56px] text-left px-4 rounded-lg border border-slate-300 hover:bg-slate-50">
+                <span className="block font-semibold">{o.titre}</span>
+                <span className="block text-sm text-slate-500">{o.aide}</span>
+              </button>
+            ))}
+            <button type="button" onClick={() => setChoixImpression(null)}
+              className="w-full min-h-[44px] rounded-lg border border-slate-300 bg-white">
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
