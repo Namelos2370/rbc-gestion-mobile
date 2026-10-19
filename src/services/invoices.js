@@ -37,8 +37,14 @@ export async function creerFacture(user, { client, lignes }) {
   const lues = lignesValides(lignes);
   if (lues.length === 0) throw new Error('Ajoutez au moins une désignation avec un prix.');
 
-  // Les administrateurs valident leurs propres factures tout de suite ; les employés attendent la validation.
-  const admin = estAdministrateur(user);
+  // Les administrateurs valident leurs propres factures tout de suite, et toutes les factures sont
+  // validées directement dans une firme qui ne demande pas de validation (réglage « validation_requise »).
+  const { data: firme } = await supabase
+    .from('companies')
+    .select('validation_requise')
+    .eq('id', getFirmeActive())
+    .maybeSingle();
+  const admin = estAdministrateur(user) || firme?.validation_requise === false;
   // Le numéro (invoice_number) est généré par la base à partir de l'identifiant : on ne l'envoie pas
   const { data: facture, error } = await supabase
     .from('invoices')

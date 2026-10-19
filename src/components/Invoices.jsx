@@ -19,6 +19,7 @@ const bouton =
 
 export default function Invoices({ user, onChange }) {
   const [invoices, setInvoices] = useState([]);
+  const [noms, setNoms] = useState({});
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -38,6 +39,8 @@ export default function Invoices({ user, onChange }) {
       .order('created_at', { ascending: false });
     if (err) return setError(err.message);
     setInvoices(data || []);
+    const { data: profils } = await supabase.from('profiles').select('id, name');
+    setNoms(Object.fromEntries((profils || []).map((p) => [p.id, p.name])));
   };
 
   const rafraichir = async () => {
@@ -81,6 +84,19 @@ export default function Invoices({ user, onChange }) {
   }, [invoices, filtres]);
 
   const total = filtrees.reduce((s, f) => s + Number(f.amount), 0);
+
+  // Récapitulatif par employé : qui a fait combien (factures filtrées)
+  const recapParEmploye = useMemo(() => {
+    const cumul = new Map();
+    for (const f of filtrees) {
+      const cle = f.employee_id || 'inconnu';
+      const ligne = cumul.get(cle) || { id: cle, nombre: 0, montant: 0 };
+      ligne.nombre += 1;
+      ligne.montant += Number(f.amount);
+      cumul.set(cle, ligne);
+    }
+    return [...cumul.values()].sort((a, b) => b.montant - a.montant);
+  }, [filtrees]);
   const filtreActif = filtres.recherche || filtres.statut !== 'tous' || filtres.du || filtres.au;
 
   const action = async (fn) => {
@@ -244,6 +260,32 @@ export default function Invoices({ user, onChange }) {
 
         {error && <div className="m-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>}
 
+        {estAdmin && recapParEmploye.length > 0 && (
+          <div className="no-print p-4 sm:p-5 border-b border-slate-200">
+            <h3 className="font-semibold mb-3">Récapitulatif par employé</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[15px] border-collapse">
+                <thead>
+                  <tr className="text-left text-slate-600">
+                    <th className="py-2 pr-4 font-semibold">Employé</th>
+                    <th className="py-2 pr-4 font-semibold text-right">Factures</th>
+                    <th className="py-2 font-semibold text-right">Montant total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recapParEmploye.map((r) => (
+                    <tr key={r.id} className="border-t border-slate-200">
+                      <td className="py-2.5 pr-4">{r.id === 'inconnu' ? 'Inconnu' : noms[r.id] || 'Inconnu'}</td>
+                      <td className="py-2.5 pr-4 text-right">{r.nombre}</td>
+                      <td className="py-2.5 text-right whitespace-nowrap font-semibold">{formatMontant(r.montant)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Vue cartes : téléphones */}
         <div className="md:hidden">
           {filtrees.length === 0 ? (
@@ -257,6 +299,7 @@ export default function Invoices({ user, onChange }) {
                       <p className="font-semibold text-[15px]">{numeroFacture(f)}</p>
                       <p className="truncate">{f.client}</p>
                       {f.service && <p className="text-sm text-slate-500 truncate">{f.service}</p>}
+                      {estAdmin && <p className="text-sm text-slate-500 truncate">Par {noms[f.employee_id] || 'Inconnu'}</p>}
                     </div>
                     {badgeStatut(f)}
                   </div>
@@ -284,6 +327,7 @@ export default function Invoices({ user, onChange }) {
               <tr className="bg-slate-50 text-slate-600 text-left">
                 <th className="px-4 lg:px-5 py-3 font-semibold">N°</th>
                 <th className="px-4 lg:px-5 py-3 font-semibold">Client</th>
+                {estAdmin && <th className="px-4 lg:px-5 py-3 font-semibold">Employé</th>}
                 <th className="px-4 lg:px-5 py-3 font-semibold">Service</th>
                 <th className="px-4 lg:px-5 py-3 font-semibold text-right">Montant</th>
                 <th className="px-4 lg:px-5 py-3 font-semibold">Statut</th>
@@ -292,12 +336,13 @@ export default function Invoices({ user, onChange }) {
             </thead>
             <tbody>
               {filtrees.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-slate-500 py-10">Aucune facture ne correspond aux filtres</td></tr>
+                <tr><td colSpan={estAdmin ? 7 : 6} className="text-center text-slate-500 py-10">Aucune facture ne correspond aux filtres</td></tr>
               ) : (
                 filtrees.map((f) => (
                   <tr key={f.id} className="border-t border-slate-200 hover:bg-slate-50/60">
                     <td className="px-4 lg:px-5 py-3.5 whitespace-nowrap">{numeroFacture(f)}</td>
                     <td className="px-4 lg:px-5 py-3.5">{f.client}</td>
+                    {estAdmin && <td className="px-4 lg:px-5 py-3.5">{noms[f.employee_id] || 'Inconnu'}</td>}
                     <td className="px-4 lg:px-5 py-3.5">{f.service}</td>
                     <td className="px-4 lg:px-5 py-3.5 text-right whitespace-nowrap font-medium">{formatMontant(f.amount)}</td>
                     <td className="px-4 lg:px-5 py-3.5">{badgeStatut(f)}</td>
@@ -311,7 +356,7 @@ export default function Invoices({ user, onChange }) {
             {filtrees.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-slate-300 font-semibold">
-                  <td colSpan={3} className="px-4 lg:px-5 py-3">Total ({filtrees.length} facture{filtrees.length > 1 ? 's' : ''})</td>
+                  <td colSpan={estAdmin ? 4 : 3} className="px-4 lg:px-5 py-3">Total ({filtrees.length} facture{filtrees.length > 1 ? 's' : ''})</td>
                   <td className="px-4 lg:px-5 py-3 text-right whitespace-nowrap">{formatMontant(total)}</td>
                   <td colSpan={2} />
                 </tr>
