@@ -10,6 +10,7 @@ import Profile from './Profile';
 import Proformas from './Proformas';
 import Caisse from './Caisse';
 import ChoixFirme from './ChoixFirme';
+import Utilisateurs from './Utilisateurs';
 import { getFirmeActive, setFirmeActive, pourFirme, chargerFirmes } from '../services/firme';
 import { formatMontant, joursDepuis, numeroFacture } from '../utils/format';
 import logoRbc from '../assets/logo-rbc.jpeg';
@@ -32,6 +33,7 @@ const MENU_LOGO = [
   { id: 'proformas', label: 'Proformas', superAdmin: true },
   { id: 'batches', label: 'Lots Excel', superAdmin: true },
   { id: 'audit', label: "Journal d'audit" },
+  { id: 'utilisateurs', label: 'Utilisateurs', superAdmin: true },
   { id: 'caisse', label: 'Encaissement', caissier: true },
   { id: 'profile', label: 'Mon profil' },
 ];
@@ -176,6 +178,14 @@ export default function Dashboard() {
         );
       case 'audit':
         return <AuditLog />;
+      case 'utilisateurs':
+        return user?.role === 'super_admin' ? (
+          <Utilisateurs user={user} />
+        ) : (
+          <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            Accès réservé aux super administrateurs
+          </p>
+        );
       case 'profile':
         return <Profile user={user} firmeNom={firmeNom} />;
       default:
