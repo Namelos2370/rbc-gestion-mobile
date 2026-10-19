@@ -27,12 +27,16 @@ export function lignesValides(lignes) {
     .filter((l) => l.designation && l.prix >= 0);
 }
 
+const estAdministrateur = (user) => ['admin', 'super_admin'].includes(user?.role);
+
 const totalDesLignes = (lignes) => lignes.reduce((s, l) => s + l.quantite * l.prix, 0);
 
 export async function creerFacture(user, { client, lignes }) {
   const lues = lignesValides(lignes);
   if (lues.length === 0) throw new Error('Ajoutez au moins une désignation avec un prix.');
 
+  // Les administrateurs valident leurs propres factures tout de suite ; les employés attendent la validation.
+  const admin = estAdministrateur(user);
   // Le numéro (invoice_number) est généré par la base à partir de l'identifiant : on ne l'envoie pas
   const { data: facture, error } = await supabase
     .from('invoices')
@@ -41,8 +45,10 @@ export async function creerFacture(user, { client, lignes }) {
         client,
         service: lues.map((l) => l.designation).join(', '),
         amount: totalDesLignes(lues),
-        status: 'en_attente',
+        status: admin ? 'validee' : 'en_attente',
         employee_id: user?.id,
+        validated_at: admin ? new Date().toISOString() : null,
+        validated_by: admin ? user?.id : null,
       },
     ])
     .select()
@@ -67,7 +73,7 @@ export async function creerFacture(user, { client, lignes }) {
     entityType: 'invoice',
     entityId: facture.id,
     action: 'create_invoice',
-    after: { invoice_number: facture.invoice_number, client, total: totalDesLignes(lues) },
+    after: { invoice_number: facture.invoice_number, client, total: totalDesLignes(lues), status: facture.status },
   });
 }
 
@@ -84,7 +90,7 @@ export async function chargerLignes(factureId) {
 export async function validerFacture(user, facture) {
   const { error } = await supabase
     .from('invoices')
-    .update({ status: 'validee', validated_at: new Date().toISOString() })
+    .update({ status: 'validee', validated_at: new Date().toISOString(), validated_by: user?.id })
     .eq('id', facture.id);
   if (error) throw error;
 

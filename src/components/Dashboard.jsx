@@ -35,6 +35,13 @@ const MENU_LOGO = [
 ];
 
 const LIBELLES_ROLE = { super_admin: 'Super admin', admin: 'Admin', employe: 'Employé', caissier: 'Caissier' };
+// Couleur du badge par rôle : on distingue d'un coup d'œil son espace
+const COULEURS_ROLE = {
+  super_admin: 'bg-purple-100 text-purple-800',
+  admin: 'bg-blue-100 text-blue-800',
+  employe: 'bg-slate-100 text-slate-700',
+  caissier: 'bg-green-100 text-green-800',
+};
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -48,14 +55,16 @@ export default function Dashboard() {
   // Le caissier n'a qu'un seul espace (l'encaissement) ; son profil reste accessible
   const ongletActif = estCaissier && onglet !== 'profile' ? 'caisse' : onglet;
 
+  // L'encaissement est ouvert au caissier, à l'administrateur et au super administrateur
   const ongletVisible = (o) => {
     if (estCaissier) return !!o.caissier;
-    return !o.caissier && (!o.superAdmin || user?.role === 'super_admin') && (estAdmin || o.id === 'invoices');
+    if (o.caissier) return estAdmin;
+    return (!o.superAdmin || user?.role === 'super_admin') && (estAdmin || o.id === 'invoices');
   };
 
   const menuVisible = (m) => {
     if (estCaissier) return !!m.caissier || m.id === 'profile';
-    if (m.caissier) return false;
+    if (m.caissier) return estAdmin;
     return (estAdmin || m.id === 'invoices' || m.id === 'profile') && (!m.superAdmin || user?.role === 'super_admin');
   };
 
@@ -102,7 +111,7 @@ export default function Dashboard() {
     }
     switch (ongletActif) {
       case 'caisse':
-        return estCaissier || user?.role === 'super_admin' ? (
+        return estAdmin || estCaissier ? (
           <Caisse user={user} />
         ) : (
           <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -215,7 +224,7 @@ export default function Dashboard() {
               <p className="font-semibold text-sm">{user?.name || user?.email}</p>
               <p className="text-xs text-slate-500">Mon profil</p>
             </button>
-            <span className="hidden md:inline bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold">
+            <span className={`hidden md:inline px-2.5 py-1 rounded-full text-xs font-semibold ${COULEURS_ROLE[user?.role] || 'bg-slate-100 text-slate-700'}`}>
               {LIBELLES_ROLE[user?.role] || user?.role}
             </span>
             <button onClick={logout} aria-label="Déconnexion"
