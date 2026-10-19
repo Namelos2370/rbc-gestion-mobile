@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { chargerEntreprise, enregistrerEntreprise, CHAMPS_ENTREPRISE } from '../services/company';
+import ModifierCompte from './ModifierCompte';
 
 const champ =
   'mt-1.5 min-h-[44px] w-full border border-slate-300 rounded-lg px-3 text-[15px] outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-slate-100 disabled:text-slate-500';
@@ -53,6 +54,9 @@ export default function Profile({ user, firmeNom = '' }) {
           </span>
         </div>
       </section>
+
+      {/* Nom et mot de passe du compte connecté */}
+      <ModifierCompte user={user} />
 
       {/* Coordonnées de l'entreprise */}
       <form onSubmit={enregistrer} className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-6">
