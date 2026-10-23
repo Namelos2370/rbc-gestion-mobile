@@ -1,16 +1,20 @@
 import { supabase } from '../config/supabase';
-import { logAudit } from './invoices';
+import { logAudit, quantiteValide } from './invoices';
 import { getFirmeActive, pourFirme } from './firme';
 
-// Lignes valides : désignation renseignée, quantité entière ≥ 1, prix ≥ 0
+// Lignes valides : désignation renseignée, quantité obligatoire (entier ≥ 1), prix ≥ 0
 export function lignesProformaValides(lignes) {
-  return lignes
+  const lues = lignes
+    .filter((l) => String(l.designation || '').trim() !== '')
     .map((l) => ({
-      designation: (l.designation || '').trim(),
-      quantite: Math.max(1, Math.round(Number(l.quantite) || 0)),
+      designation: String(l.designation).trim(),
+      quantite: quantiteValide(l.quantite),
       prix: Math.max(0, Number(l.prix) || 0),
-    }))
-    .filter((l) => l.designation && l.prix >= 0);
+    }));
+  if (lues.some((l) => l.quantite === null)) {
+    throw new Error('Indiquez la quantité (au moins 1) pour chaque désignation.');
+  }
+  return lues;
 }
 
 export async function chargerProformas() {
@@ -57,7 +61,7 @@ export async function creerProforma(user, { client, lignes }) {
     entityType: 'proforma',
     entityId: proforma.id,
     action: 'create_proforma',
-    after: { proforma_number: proforma.proforma_number, client, total: montant },
+    after: { proforma_number: proforma.proforma_number, client, total: montant, lignes: lues },
   });
   return proforma;
 }

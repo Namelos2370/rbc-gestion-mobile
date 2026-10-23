@@ -18,15 +18,27 @@ export async function logAudit(user, { entityType, entityId, action, before = nu
   if (error) console.error('Audit non enregistré :', error.message);
 }
 
+// Quantité obligatoire : entier au moins égal à 1. Rien n'est mis par défaut.
+export function quantiteValide(saisie) {
+  const texte = String(saisie ?? '').trim();
+  if (!/^\d+$/.test(texte) || Number(texte) < 1) return null;
+  return Number(texte);
+}
+
 // Lignes saisies : { designation, quantite, prix } (valeurs du formulaire, en texte ou nombre)
+// Chaque désignation doit avoir une quantité (au moins 1), sinon la facture n'est pas enregistrée.
 export function lignesValides(lignes) {
-  return lignes
+  const lues = lignes
+    .filter((l) => String(l.designation || '').trim() !== '')
     .map((l) => ({
-      designation: String(l.designation || '').trim(),
-      quantite: Math.max(1, Math.round(Number(l.quantite) || 0)),
+      designation: String(l.designation).trim(),
+      quantite: quantiteValide(l.quantite),
       prix: Math.max(0, Number(l.prix) || 0),
-    }))
-    .filter((l) => l.designation && l.prix >= 0);
+    }));
+  if (lues.some((l) => l.quantite === null)) {
+    throw new Error('Indiquez la quantité (au moins 1) pour chaque désignation.');
+  }
+  return lues;
 }
 
 const estAdministrateur = (user) => ['admin', 'super_admin'].includes(user?.role);
@@ -82,7 +94,13 @@ export async function creerFacture(user, { client, lignes }) {
     entityType: 'invoice',
     entityId: facture.id,
     action: 'create_invoice',
-    after: { invoice_number: facture.invoice_number, client, total: totalDesLignes(lues), status: facture.status },
+    after: {
+      invoice_number: facture.invoice_number,
+      client,
+      total: totalDesLignes(lues),
+      status: facture.status,
+      lignes: lues,
+    },
   });
 }
 
@@ -120,7 +138,7 @@ export async function modifierFacture(user, facture, { client, lignes }) {
     client: facture.client,
     service: facture.service,
     amount: facture.amount,
-    lignes: await chargerLignes(facture.id),
+    lignes: (await chargerLignes(facture.id)).map((l) => ({ designation: l.designation, quantite: l.quantity, prix: l.unit_price })),
   };
 
   const { error } = await supabase

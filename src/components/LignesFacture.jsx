@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { formatMontant } from '../utils/format';
 
-export const LIGNE_VIDE = { designation: '', quantite: 1, prix: '' };
+export const LIGNE_VIDE = { designation: '', quantite: '', prix: '' };
 
 export const totalLignes = (lignes) =>
   lignes.reduce((s, l) => s + (Number(l.quantite) || 0) * (Number(l.prix) || 0), 0);
@@ -41,7 +41,7 @@ export default function LignesFacture({ lignes, onChange }) {
           </label>
           <label>
             <span className={etiquette}>Quantité</span>
-            <input className={champ} type="number" inputMode="numeric" min="1" step="1" value={l.quantite}
+            <input className={champ} type="number" inputMode="numeric" min="1" step="1" value={l.quantite} required placeholder="Qté"
               aria-label={`Quantité ligne ${i + 1}`}
               onChange={(e) => modifier(i, 'quantite', e.target.value)} />
           </label>

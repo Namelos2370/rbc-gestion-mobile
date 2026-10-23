@@ -12,6 +12,8 @@ const LIBELLES = {
   create_invoice: 'Facture créée',
   create_batch: 'Lot de proformas créé',
   encaisser_facture: 'Facture encaissée',
+  create_proforma: 'Proforma créée',
+  delete_proforma: 'Proforma supprimée',
 };
 
 // Libellés des champs enregistrés dans le journal
@@ -23,12 +25,19 @@ const CHAMPS = {
   batch_number: 'Numéro de lot',
   invoice_ids: 'Factures',
   batch_id: 'Lot',
+  lignes: 'Lignes',
 };
 
 // Affiche les valeurs du journal en clair, sans JSON
 function valeursLisibles(valeur) {
   if (!valeur) return [];
   return Object.entries(valeur).map(([cle, val]) => {
+    if (cle === 'lignes' && Array.isArray(val)) {
+      return {
+        libelle: CHAMPS[cle],
+        liste: val.map((l) => `${l.designation} : ${l.quantite} × ${formatMontant(l.prix)}`),
+      };
+    }
     let texte;
     if (Array.isArray(val)) texte = `${val.length} élément(s)`;
     else if (cle === 'total' || cle === 'amount') texte = formatMontant(val);
@@ -48,7 +57,15 @@ function Detail({ titre, valeur }) {
         {lignes.map((l) => (
           <div key={l.libelle} className="flex gap-2">
             <dt className="text-slate-500">{l.libelle} :</dt>
-            <dd className="font-medium break-all">{l.texte}</dd>
+            {l.liste ? (
+              <dd className="font-medium">
+                <ul className="space-y-0.5">
+                  {l.liste.map((ligne, i) => <li key={i} className="break-all">{ligne}</li>)}
+                </ul>
+              </dd>
+            ) : (
+              <dd className="font-medium break-all">{l.texte}</dd>
+            )}
           </div>
         ))}
       </dl>
