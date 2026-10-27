@@ -57,7 +57,7 @@ export default function Dashboard() {
   if (firmeActive && getFirmeActive() !== Number(firmeActive)) setFirmeActive(firmeActive);
   const firmeNom = firmes.find((f) => f.id === Number(firmeActive))?.name || '';
   const [onglet, setOnglet] = useState('invoices');
-  const [stats, setStats] = useState({ enAttente: 0, validees: 0, lots: 0, totalMois: 0 });
+  const [stats, setStats] = useState({ enAttente: 0, validees: 0, lots: 0, totalJour: 0, totalMois: 0 });
   const [alertes, setAlertes] = useState([]);
   const [notifOuverte, setNotifOuverte] = useState(false);
   const [menuLogoOuvert, setMenuLogoOuvert] = useState(false);
@@ -94,11 +94,17 @@ export default function Dashboard() {
     const debutMois = new Date();
     debutMois.setDate(1);
     debutMois.setHours(0, 0, 0, 0);
+    // Montant du jour : affiché à part, il rejoint le total du mois le jour suivant
+    const debutJour = new Date();
+    debutJour.setHours(0, 0, 0, 0);
 
     setStats({
       enAttente: liste.filter((f) => f.status === 'en_attente').length,
       validees: liste.filter((f) => f.status === 'validee').length,
       lots: nbLots ?? 0,
+      totalJour: liste
+        .filter((f) => new Date(f.created_at) >= debutJour)
+        .reduce((s, f) => s + Number(f.amount), 0),
       totalMois: liste
         .filter((f) => new Date(f.created_at) >= debutMois)
         .reduce((s, f) => s + Number(f.amount), 0),
@@ -197,6 +203,7 @@ export default function Dashboard() {
     { label: 'En attente de validation', valeur: stats.enAttente },
     { label: 'Factures validées', valeur: stats.validees },
     { label: 'Lots de proformas', valeur: stats.lots },
+    { label: "Total d'aujourd'hui", valeur: formatMontant(stats.totalJour) },
     { label: 'Total du mois', valeur: formatMontant(stats.totalMois) },
   ];
 
@@ -305,7 +312,7 @@ export default function Dashboard() {
 
       <main key={firmeActive ?? 'aucune'} className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-6xl mx-auto space-y-6 sm:space-y-8">
         {!estCaissier && (
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <section className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
             {cartes.map((c) => (
               <div key={c.label} className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col gap-1">
                 <p className="text-[13px] sm:text-sm text-slate-500 leading-snug">{c.label}</p>
