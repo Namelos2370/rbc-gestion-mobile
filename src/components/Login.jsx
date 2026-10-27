@@ -3,8 +3,8 @@ import { useAuth } from '../hooks/useAuth';
 import logoRbc from '../assets/logo-rbc.jpeg';
 
 export default function Login() {
-  const [email, setEmail] = useState('super@rbc.local');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
