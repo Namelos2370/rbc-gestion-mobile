@@ -67,7 +67,7 @@ export default function Dashboard() {
   const estAdmin = ['admin', 'super_admin'].includes(user?.role);
   const estCaissier = user?.role === 'caissier';
   // Le caissier n'a qu'un seul espace (l'encaissement) ; son profil reste accessible
-  const ongletActif = estCaissier && onglet !== 'profile' ? 'caisse' : onglet;
+  const ongletActif = estCaissier && !['profile', 'depenses'].includes(onglet) ? 'caisse' : onglet;
 
   // L'encaissement est ouvert au caissier, à l'administrateur et au super administrateur
   const ongletVisible = (o) => {
