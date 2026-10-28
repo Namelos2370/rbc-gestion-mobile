@@ -2,14 +2,6 @@ import { supabase } from '../config/supabase';
 import { getFirmeActive, pourFirme } from './firme';
 import { logAudit } from './invoices';
 
-export const CATEGORIES_DEPENSE = {
-  transport: 'Transport',
-  fournitures: 'Fournitures',
-  electricite: 'Électricité / eau',
-  loyer: 'Loyer',
-  autre: 'Autre',
-};
-
 // Date du jour à Douala, au format AAAA-MM-JJ
 export const aujourdhui = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Douala' });
 
@@ -22,12 +14,10 @@ export function depenseValide(saisie) {
   const libelle = (saisie.libelle || '').trim();
   const montant = Number(String(saisie.montant).replace(/\s/g, '').replace(',', '.'));
   if (!libelle) throw new Error('Indiquez le libellé de la dépense.');
-  if (!CATEGORIES_DEPENSE[saisie.categorie]) throw new Error('Choisissez une catégorie.');
   if (!Number.isFinite(montant) || montant <= 0) throw new Error('Indiquez un montant supérieur à 0.');
   return {
     date_depense: saisie.date_depense || aujourdhui(),
     libelle,
-    categorie: saisie.categorie,
     montant: Math.round(montant * 100) / 100,
     note: (saisie.note || '').trim() || null,
   };
@@ -65,7 +55,7 @@ export async function modifierDepense(user, depense, saisie) {
     entityType: 'depense',
     entityId: depense.id,
     action: 'update_depense',
-    before: { libelle: depense.libelle, categorie: depense.categorie, montant: depense.montant, date_depense: depense.date_depense, note: depense.note },
+    before: { libelle: depense.libelle, montant: depense.montant, date_depense: depense.date_depense, note: depense.note },
     after: donnees,
   });
 }
@@ -77,6 +67,6 @@ export async function supprimerDepense(user, depense) {
     entityType: 'depense',
     entityId: depense.id,
     action: 'delete_depense',
-    before: { libelle: depense.libelle, categorie: depense.categorie, montant: depense.montant, date_depense: depense.date_depense },
+    before: { libelle: depense.libelle, montant: depense.montant, date_depense: depense.date_depense },
   });
 }

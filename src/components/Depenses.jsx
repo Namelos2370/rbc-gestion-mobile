@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Pencil, Trash2, X } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import {
-  CATEGORIES_DEPENSE, aujourdhui, estDuJour, chargerDepenses,
+  aujourdhui, estDuJour, chargerDepenses,
   ajouterDepense, modifierDepense, supprimerDepense,
 } from '../services/depenses';
 import { formatMontant, formatDate } from '../utils/format';
@@ -10,7 +10,7 @@ import { formatMontant, formatDate } from '../utils/format';
 const champ =
   'min-h-[44px] w-full border border-slate-300 rounded-lg px-3 text-[15px] outline-none focus:ring-2 focus:ring-blue-500 bg-white';
 
-const VIDE = { date_depense: '', libelle: '', categorie: 'fournitures', montant: '', note: '' };
+const VIDE = { date_depense: '', libelle: '', montant: '', note: '' };
 
 // Dépenses : le caissier saisit les siennes ; l'administrateur et le super administrateur consultent.
 export default function Depenses({ user }) {
@@ -89,7 +89,6 @@ export default function Depenses({ user }) {
     setSaisie({
       date_depense: d.date_depense,
       libelle: d.libelle,
-      categorie: d.categorie,
       montant: String(d.montant),
       note: d.note || '',
     });
@@ -138,14 +137,6 @@ export default function Depenses({ user }) {
               <input type="date" required value={saisie.date_depense} max={aujourdhui()}
                 onChange={(e) => setSaisie({ ...saisie, date_depense: e.target.value })} className={`mt-1 ${champ}`} />
             </label>
-            <label className="text-sm font-semibold text-slate-700">
-              Catégorie
-              <select value={saisie.categorie} onChange={(e) => setSaisie({ ...saisie, categorie: e.target.value })} className={`mt-1 ${champ}`}>
-                {Object.entries(CATEGORIES_DEPENSE).map(([id, libelle]) => (
-                  <option key={id} value={id}>{libelle}</option>
-                ))}
-              </select>
-            </label>
             <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
               Libellé
               <input type="text" required value={saisie.libelle} placeholder="Ex. Carburant livraison"
@@ -183,7 +174,7 @@ export default function Depenses({ user }) {
                 <div className="min-w-0">
                   <p className="font-semibold truncate">{d.libelle}</p>
                   <p className="text-sm text-slate-500">
-                    {formatDate(d.date_depense)} · {CATEGORIES_DEPENSE[d.categorie]}
+                    {formatDate(d.date_depense)}
                     {estAdmin && ` · ${noms[d.created_by] || 'Inconnu'}`}
                     {d.note && ` · ${d.note}`}
                   </p>
