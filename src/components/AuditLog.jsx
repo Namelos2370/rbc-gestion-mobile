@@ -14,6 +14,9 @@ const LIBELLES = {
   encaisser_facture: 'Facture encaissée',
   create_proforma: 'Proforma créée',
   delete_proforma: 'Proforma supprimée',
+  create_depense: 'Dépense créée',
+  update_depense: 'Dépense modifiée',
+  delete_depense: 'Dépense supprimée',
 };
 
 // Libellés des champs enregistrés dans le journal
@@ -26,6 +29,11 @@ const CHAMPS = {
   invoice_ids: 'Factures',
   batch_id: 'Lot',
   lignes: 'Lignes',
+  libelle: 'Libellé',
+  categorie: 'Catégorie',
+  note: 'Note',
+  date_depense: 'Date',
+  montant: 'Montant',
 };
 
 // Affiche les valeurs du journal en clair, sans JSON
@@ -40,7 +48,7 @@ function valeursLisibles(valeur) {
     }
     let texte;
     if (Array.isArray(val)) texte = `${val.length} élément(s)`;
-    else if (cle === 'total' || cle === 'amount') texte = formatMontant(val);
+    else if (cle === 'total' || cle === 'amount' || cle === 'montant') texte = formatMontant(val);
     else if (cle === 'batch_id') texte = String(val).slice(0, 8);
     else texte = String(val);
     return { libelle: CHAMPS[cle] || cle, texte };

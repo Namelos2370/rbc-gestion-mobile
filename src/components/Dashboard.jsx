@@ -9,6 +9,7 @@ import AuditLog from './AuditLog';
 import Profile from './Profile';
 import Proformas from './Proformas';
 import Caisse from './Caisse';
+import Depenses from './Depenses';
 import ChoixFirme from './ChoixFirme';
 import Utilisateurs from './Utilisateurs';
 import { getFirmeActive, setFirmeActive, pourFirme, chargerFirmes } from '../services/firme';
@@ -24,6 +25,7 @@ const ONGLETS = [
   { id: 'batches', label: 'Lots Excel', superAdmin: true },
   { id: 'audit', label: 'Audit' },
   { id: 'caisse', label: 'Encaissement', caissier: true },
+  { id: 'depenses', label: 'Dépenses', caissier: true },
 ];
 
 // Menu déroulant ouvert en cliquant sur le logo
@@ -35,6 +37,7 @@ const MENU_LOGO = [
   { id: 'audit', label: "Journal d'audit" },
   { id: 'utilisateurs', label: 'Utilisateurs', superAdmin: true },
   { id: 'caisse', label: 'Encaissement', caissier: true },
+  { id: 'depenses', label: 'Dépenses', caissier: true },
   { id: 'profile', label: 'Mon profil' },
 ];
 
@@ -157,6 +160,14 @@ export default function Dashboard() {
       case 'caisse':
         return estAdmin || estCaissier ? (
           <Caisse user={user} />
+        ) : (
+          <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            Accès réservé au caissier
+          </p>
+        );
+      case 'depenses':
+        return estAdmin || estCaissier ? (
+          <Depenses user={user} />
         ) : (
           <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             Accès réservé au caissier
