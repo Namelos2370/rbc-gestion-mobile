@@ -21,8 +21,8 @@ export function imprimerDansFenetre(fenetre, element, titre, { format = 'A4' } =
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${titre}</title>
   <style>
-    @page { size: ${format === 'ticket' ? '80mm auto' : 'A4'}; margin: ${format === 'ticket' ? '4mm' : '0'}; }
-    html, body { margin: 0; padding: 0; background: #ffffff; }
+    @page { size: ${format === 'ticket' ? '80mm auto' : 'A4'}; margin: 0; }
+    html, body { margin: 0; padding: ${format === 'ticket' ? '4mm' : '0'}; background: #ffffff; }
   </style>
 </head>
 <body>${html}</body>
