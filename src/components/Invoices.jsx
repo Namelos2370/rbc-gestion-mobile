@@ -25,7 +25,7 @@ export default function Invoices({ user, onChange }) {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(null);
   const [choixImpression, setChoixImpression] = useState(null);
-  const [client, setClient] = useState('');
+  const [client, setClient] = useState('client');
   const [lignes, setLignes] = useState([{ ...LIGNE_VIDE }]);
   const [filtres, setFiltres] = useState({ recherche: '', statut: 'tous', du: '', au: '' });
   const estAdmin = ['admin', 'super_admin'].includes(user?.role);
@@ -115,7 +115,7 @@ export default function Invoices({ user, onChange }) {
     setError('');
     try {
       await creerFacture(user, { client, lignes });
-      setClient('');
+      setClient('client');
       setLignes([{ ...LIGNE_VIDE }]);
       setShowForm(false);
       await rafraichir();
@@ -157,7 +157,7 @@ export default function Invoices({ user, onChange }) {
       <button onClick={() => setChoixImpression(f)} className={`${bouton} border border-slate-300 bg-white`}>
         <Printer size={14} /> Imprimer
       </button>
-      {estAdmin && (
+      {user?.role === 'super_admin' && (
         <button onClick={() => {
             if (confirm('Supprimer cette facture ?')) action(() => supprimerFacture(user, f));
           }}

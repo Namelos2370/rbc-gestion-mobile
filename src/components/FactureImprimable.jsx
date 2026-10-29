@@ -43,6 +43,9 @@ export default function FactureImprimable({ facture, lignes: lignesRecues, entre
       <div style={{ marginTop: 26, fontSize: 17 }}>
         <span style={{ fontWeight: 700, textDecoration: 'underline' }}>Doit :</span>
         <span style={{ marginLeft: 8, fontWeight: 700 }}>{facture.client}</span>
+        {facture.client_phone && (
+          <div style={{ marginLeft: 8, fontSize: 15, marginTop: 4 }}>Tél. : {facture.client_phone}</div>
+        )}
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 22, fontSize: 16 }}>

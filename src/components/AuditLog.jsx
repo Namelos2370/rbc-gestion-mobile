@@ -17,6 +17,8 @@ const LIBELLES = {
   create_depense: 'Dépense créée',
   update_depense: 'Dépense modifiée',
   delete_depense: 'Dépense supprimée',
+  proforma_payee: 'Proforma payée',
+  proforma_impayee: 'Proforma remise en attente de paiement',
 };
 
 // Libellés des champs enregistrés dans le journal

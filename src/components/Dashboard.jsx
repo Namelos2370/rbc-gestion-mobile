@@ -21,7 +21,7 @@ const JOURS_ALERTE = 3;
 const ONGLETS = [
   { id: 'invoices', label: 'Factures' },
   { id: 'validation', label: 'Validation' },
-  { id: 'proformas', label: 'Proformas', superAdmin: true },
+  { id: 'proformas', label: 'Proformas' },
   { id: 'batches', label: 'Lots Excel', superAdmin: true },
   { id: 'audit', label: 'Audit' },
   { id: 'caisse', label: 'Encaissement', caissier: true },
@@ -32,7 +32,7 @@ const ONGLETS = [
 const MENU_LOGO = [
   { id: 'invoices', label: 'Accueil · Factures' },
   { id: 'validation', label: 'Validation des factures' },
-  { id: 'proformas', label: 'Proformas', superAdmin: true },
+  { id: 'proformas', label: 'Proformas' },
   { id: 'batches', label: 'Lots Excel', superAdmin: true },
   { id: 'audit', label: "Journal d'audit" },
   { id: 'utilisateurs', label: 'Utilisateurs', superAdmin: true },
@@ -60,7 +60,7 @@ export default function Dashboard() {
   if (firmeActive && getFirmeActive() !== Number(firmeActive)) setFirmeActive(firmeActive);
   const firmeNom = firmes.find((f) => f.id === Number(firmeActive))?.name || '';
   const [onglet, setOnglet] = useState('invoices');
-  const [stats, setStats] = useState({ enAttente: 0, validees: 0, lots: 0, totalJour: 0, totalMois: 0 });
+  const [stats, setStats] = useState({ enAttente: 0, validees: 0, lots: 0, totalJour: 0, totalMois: 0, nbJour: 0, proformasImpayees: 0 });
   const [alertes, setAlertes] = useState([]);
   const [notifOuverte, setNotifOuverte] = useState(false);
   const [menuLogoOuvert, setMenuLogoOuvert] = useState(false);
@@ -89,9 +89,10 @@ export default function Dashboard() {
   };
 
   const chargerStats = async () => {
-    const [{ data: factures }, { count: nbLots }] = await Promise.all([
+    const [{ data: factures }, { count: nbLots }, { count: nbImpayees }] = await Promise.all([
       pourFirme(supabase.from('invoices').select('id, invoice_number, client, service, amount, status, created_at')),
       pourFirme(supabase.from('batches').select('id', { count: 'exact', head: true })),
+      pourFirme(supabase.from('proformas').select('id', { count: 'exact', head: true }).is('paid_at', null)),
     ]);
     const liste = factures || [];
     const debutMois = new Date();
@@ -105,6 +106,8 @@ export default function Dashboard() {
       enAttente: liste.filter((f) => f.status === 'en_attente').length,
       validees: liste.filter((f) => f.status === 'validee').length,
       lots: nbLots ?? 0,
+      proformasImpayees: nbImpayees ?? 0,
+      nbJour: liste.filter((f) => new Date(f.created_at) >= debutJour).length,
       totalJour: liste
         .filter((f) => new Date(f.created_at) >= debutJour)
         .reduce((s, f) => s + Number(f.amount), 0),
@@ -186,11 +189,11 @@ export default function Dashboard() {
           </p>
         );
       case 'proformas':
-        return user?.role === 'super_admin' ? (
+        return estAdmin ? (
           <Proformas user={user} />
         ) : (
           <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            Accès réservé aux super administrateurs
+            Accès réservé aux administrateurs
           </p>
         );
       case 'audit':
@@ -210,7 +213,13 @@ export default function Dashboard() {
     }
   };
 
-  const cartes = [
+  // L'admin ne voit que l'essentiel du jour ; le super administrateur garde l'ensemble
+  const cartes = user?.role === 'admin' ? [
+    { label: "Total d'aujourd'hui", valeur: formatMontant(stats.totalJour) },
+    { label: "Factures créées aujourd'hui", valeur: stats.nbJour },
+    { label: 'Proformas en attente de paiement', valeur: stats.proformasImpayees },
+    { label: 'Factures en attente de validation', valeur: stats.enAttente },
+  ] : [
     { label: 'En attente de validation', valeur: stats.enAttente },
     { label: 'Factures validées', valeur: stats.validees },
     { label: 'Lots de proformas', valeur: stats.lots },

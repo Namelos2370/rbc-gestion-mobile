@@ -35,14 +35,14 @@ export async function chargerLignesProforma(proformaId) {
 }
 
 // Le numéro (PRO-0001) est généré par la base : on ne l'envoie pas
-export async function creerProforma(user, { client, lignes }) {
+export async function creerProforma(user, { client, clientPhone, lignes }) {
   const lues = lignesProformaValides(lignes);
   if (lues.length === 0) throw new Error('Ajoutez au moins une désignation avec un prix.');
   const montant = lues.reduce((s, l) => s + l.quantite * l.prix, 0);
 
   const { data: proforma, error } = await supabase
     .from('proformas')
-    .insert([{ client, amount: montant, created_by: user?.id, company_id: getFirmeActive() }])
+    .insert([{ client, client_phone: (clientPhone || '').trim() || null, amount: montant, created_by: user?.id, company_id: getFirmeActive() }])
     .select()
     .single();
   if (error) throw error;
@@ -61,9 +61,23 @@ export async function creerProforma(user, { client, lignes }) {
     entityType: 'proforma',
     entityId: proforma.id,
     action: 'create_proforma',
-    after: { proforma_number: proforma.proforma_number, client, total: montant, lignes: lues },
+    after: { proforma_number: proforma.proforma_number, client, client_phone: proforma.client_phone, total: montant, lignes: lues },
   });
   return proforma;
+}
+
+// Suivi du règlement : marque la proforma comme payée (ou la remet en attente)
+export async function definirPaiementProforma(user, proforma, payee) {
+  const paid_at = payee ? new Date().toISOString() : null;
+  const { error } = await supabase.from('proformas').update({ paid_at }).eq('id', proforma.id);
+  if (error) throw error;
+  await logAudit(user, {
+    entityType: 'proforma',
+    entityId: proforma.id,
+    action: payee ? 'proforma_payee' : 'proforma_impayee',
+    before: { proforma_number: proforma.proforma_number, paid: !!proforma.paid_at },
+    after: { proforma_number: proforma.proforma_number, paid: payee },
+  });
 }
 
 export async function supprimerProforma(user, proforma) {
