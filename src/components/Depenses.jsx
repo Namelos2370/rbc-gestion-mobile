@@ -4,6 +4,7 @@ import { supabase } from '../config/supabase';
 import {
   aujourdhui, estDuJour, chargerDepenses,
   ajouterDepense, modifierDepense, supprimerDepense,
+  depensesEnAttente, synchroniserDepenses,
 } from '../services/depenses';
 import { formatMontant, formatDate } from '../utils/format';
 
@@ -12,11 +13,11 @@ const champ =
 
 const VIDE = { date_depense: '', libelle: '', montant: '', note: '' };
 
-// Dépenses : le caissier et l'admin saisissent les leurs ; le super administrateur consulte et gère tout.
+// Dépenses : le caissier saisit les siennes ; le super administrateur consulte et gère tout.
 export default function Depenses({ user }) {
   const estAdmin = ['admin', 'super_admin'].includes(user?.role);
-  // Saisie ouverte au caissier et à l'admin ; le super admin consulte et peut tout modifier
-  const peutSaisir = ['caissier', 'admin'].includes(user?.role);
+  // Saisie réservée au caissier ; le super admin consulte et peut tout modifier
+  const peutSaisir = user?.role === 'caissier';
   const [depenses, setDepenses] = useState([]);
   const [noms, setNoms] = useState({});
   const [saisie, setSaisie] = useState({ ...VIDE, date_depense: aujourdhui() });
@@ -25,7 +26,10 @@ export default function Depenses({ user }) {
   const [erreur, setErreur] = useState('');
   const [message, setMessage] = useState('');
 
+  const [attente, setAttente] = useState([]);
+
   const rafraichir = async () => {
+    setAttente(depensesEnAttente(user?.id));
     try {
       setDepenses(await chargerDepenses());
     } catch (err) {
@@ -33,8 +37,16 @@ export default function Depenses({ user }) {
     }
   };
 
+  // Envoie les dépenses gardées sur l'appareil, puis recharge la liste
+  const synchroniser = async () => {
+    const { envoyees, erreur: erreurSynchro } = await synchroniserDepenses(user);
+    if (erreurSynchro) setErreur(erreurSynchro);
+    if (envoyees > 0) setMessage(`${envoyees} dépense(s) hors ligne envoyée(s).`);
+    await rafraichir();
+  };
+
   useEffect(() => {
-    rafraichir();
+    synchroniser();
     if (estAdmin) {
       supabase.from('profiles').select('id, name').then(({ data }) => {
         const table = {};
@@ -42,6 +54,8 @@ export default function Depenses({ user }) {
         setNoms(table);
       });
     }
+    window.addEventListener('online', synchroniser);
+    return () => window.removeEventListener('online', synchroniser);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -52,7 +66,8 @@ export default function Depenses({ user }) {
     const mois = jour.slice(0, 7);
     let totalJour = 0;
     let totalMois = 0;
-    depenses.forEach((d) => {
+    [...attente, ...depenses].forEach((d) => {
+      d = d.donnees ? { date_depense: d.donnees.date_depense, montant: d.donnees.montant } : d;
       if (d.date_depense === jour) totalJour += Number(d.montant);
       if (d.date_depense.startsWith(mois)) totalMois += Number(d.montant);
     });
@@ -74,8 +89,10 @@ export default function Depenses({ user }) {
         await modifierDepense(user, enModification, saisie);
         setMessage('Dépense modifiée.');
       } else {
-        await ajouterDepense(user, saisie);
-        setMessage('Dépense enregistrée.');
+        const { enAttente } = await ajouterDepense(user, saisie);
+        setMessage(enAttente
+          ? 'Pas de connexion : dépense gardée sur cet appareil, elle sera envoyée dès que le réseau reviendra.'
+          : 'Dépense enregistrée.');
       }
       annuler();
       await rafraichir();
@@ -163,13 +180,27 @@ export default function Depenses({ user }) {
 
       {erreur && <p role="alert" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{erreur}</p>}
       {message && <p className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">{message}</p>}
+      {attente.length > 0 && (
+        <p className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg">
+          {attente.length} dépense(s) gardée(s) sur cet appareil, en attente d'envoi.
+        </p>
+      )}
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-200 font-bold">Liste des dépenses</div>
-        {depenses.length === 0 ? (
+        {depenses.length === 0 && attente.length === 0 ? (
           <p className="px-5 py-6 text-slate-500 text-center">Aucune dépense enregistrée.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
+            {attente.map((a) => (
+              <li key={a.client_ref} className="px-5 py-3 flex items-center justify-between gap-3 bg-amber-50/50">
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">{a.donnees.libelle}</p>
+                  <p className="text-sm text-amber-700">{formatDate(a.donnees.date_depense)} · En attente d'envoi</p>
+                </div>
+                <span className="font-semibold whitespace-nowrap">{formatMontant(a.donnees.montant)}</span>
+              </li>
+            ))}
             {depenses.map((d) => (
               <li key={d.id} className="px-5 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
