@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { getFirmeActive, pourFirme } from './firme';
+import { avecCache } from './cache';
 
 // Journal d'audit : colonnes réelles de la table audit_logs.
 // entity_id est un bigint non nul : les lots (uuid) sont journalisés avec entity_id = 0.
@@ -105,13 +106,25 @@ export async function creerFacture(user, { client, lignes }) {
 }
 
 export async function chargerLignes(factureId) {
-  const { data, error } = await supabase
-    .from('invoice_items')
-    .select('*')
-    .eq('invoice_id', factureId)
-    .order('id');
-  if (error) throw error;
-  return data || [];
+  return avecCache(`rbc_c_lignes_f_${factureId}`, async () => {
+    const { data, error } = await supabase
+      .from('invoice_items')
+      .select('*')
+      .eq('invoice_id', factureId)
+      .order('id');
+    if (error) throw error;
+    return data || [];
+  });
+}
+
+// Liste des factures de la firme active, gardée pour être consultée hors ligne
+export async function chargerFactures() {
+  return avecCache(`rbc_c_factures_${getFirmeActive() || 'toutes'}`, async () => {
+    const { data, error } = await pourFirme(supabase.from('invoices').select('*'))
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  });
 }
 
 export async function validerFacture(user, facture) {

@@ -5,7 +5,7 @@ import { Plus, Trash2, Pencil, Check, Download, Printer, Search, RotateCcw } fro
 import EditInvoiceModal from './EditInvoiceModal';
 import LignesFacture, { LIGNE_VIDE } from './LignesFacture';
 import FactureImprimable from './FactureImprimable';
-import { creerFacture, validerFacture, supprimerFacture, chargerLignes } from '../services/invoices';
+import { creerFacture, validerFacture, supprimerFacture, chargerLignes, chargerFactures } from '../services/invoices';
 import { chargerEntreprise } from '../services/company';
 import { STATUS_LABEL, formatMontant, formatDate, numeroFacture, exporterCsv } from '../utils/format';
 import { ouvrirFenetreImpression, imprimerDansFenetre } from '../utils/imprimer';
@@ -35,10 +35,11 @@ export default function Invoices({ user, onChange }) {
   }, []);
 
   const charger = async () => {
-    const { data, error: err } = await pourFirme(supabase.from('invoices').select('*'))
-      .order('created_at', { ascending: false });
-    if (err) return setError(err.message);
-    setInvoices(data || []);
+    try {
+      setInvoices(await chargerFactures());
+    } catch (err) {
+      return setError(err.message);
+    }
     const { data: profils } = await supabase.from('profiles').select('id, name');
     setNoms(Object.fromEntries((profils || []).map((p) => [p.id, p.name])));
   };

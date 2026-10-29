@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
-import { pourFirme } from './firme';
+import { pourFirme, getFirmeActive } from './firme';
+import { avecCache } from './cache';
 
 // Coordonnées de l'entreprise, stockées dans la table settings (clé / valeur).
 export const CHAMPS_ENTREPRISE = [
@@ -14,10 +15,12 @@ export const CHAMPS_ENTREPRISE = [
 ];
 
 export async function chargerEntreprise() {
-  const { data, error } = await pourFirme(supabase.from('settings').select('key, value'))
-    .in('key', CHAMPS_ENTREPRISE.map((c) => c.key));
-  if (error) throw error;
-  return Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+  return avecCache(`rbc_c_entreprise_${getFirmeActive() || 'toutes'}`, async () => {
+    const { data, error } = await pourFirme(supabase.from('settings').select('key, value'))
+      .in('key', CHAMPS_ENTREPRISE.map((c) => c.key));
+    if (error) throw error;
+    return Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+  });
 }
 
 export async function enregistrerEntreprise(user, valeurs) {

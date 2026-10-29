@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase';
 import { logAudit, quantiteValide } from './invoices';
 import { getFirmeActive, pourFirme } from './firme';
+import { avecCache } from './cache';
 
 // Lignes valides : désignation renseignée, quantité obligatoire (entier ≥ 1), prix ≥ 0
 export function lignesProformaValides(lignes) {
@@ -18,20 +19,24 @@ export function lignesProformaValides(lignes) {
 }
 
 export async function chargerProformas() {
-  const { data, error } = await pourFirme(supabase.from('proformas').select('*'))
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  return avecCache(`rbc_c_proformas_${getFirmeActive() || 'toutes'}`, async () => {
+    const { data, error } = await pourFirme(supabase.from('proformas').select('*'))
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  });
 }
 
 export async function chargerLignesProforma(proformaId) {
-  const { data, error } = await supabase
-    .from('proforma_items')
-    .select('*')
-    .eq('proforma_id', proformaId)
-    .order('id');
-  if (error) throw error;
-  return data || [];
+  return avecCache(`rbc_c_lignes_p_${proformaId}`, async () => {
+    const { data, error } = await supabase
+      .from('proforma_items')
+      .select('*')
+      .eq('proforma_id', proformaId)
+      .order('id');
+    if (error) throw error;
+    return data || [];
+  });
 }
 
 // Le numéro (PRO-0001) est généré par la base : on ne l'envoie pas
