@@ -23,9 +23,9 @@ const ONGLETS = [
   { id: 'validation', label: 'Validation' },
   { id: 'proformas', label: 'Proformas' },
   { id: 'batches', label: 'Lots Excel', superAdmin: true },
-  { id: 'audit', label: 'Audit' },
+  { id: 'audit', label: 'Audit', superAdmin: true },
   { id: 'caisse', label: 'Encaissement', caissier: true },
-  { id: 'depenses', label: 'Dépenses', caissier: true },
+  { id: 'depenses', label: 'Dépenses', caissierSeul: true },
 ];
 
 // Menu déroulant ouvert en cliquant sur le logo
@@ -34,10 +34,10 @@ const MENU_LOGO = [
   { id: 'validation', label: 'Validation des factures' },
   { id: 'proformas', label: 'Proformas' },
   { id: 'batches', label: 'Lots Excel', superAdmin: true },
-  { id: 'audit', label: "Journal d'audit" },
+  { id: 'audit', label: "Journal d'audit", superAdmin: true },
   { id: 'utilisateurs', label: 'Utilisateurs', superAdmin: true },
   { id: 'caisse', label: 'Encaissement', caissier: true },
-  { id: 'depenses', label: 'Dépenses', caissier: true },
+  { id: 'depenses', label: 'Dépenses', caissierSeul: true },
   { id: 'profile', label: 'Mon profil' },
 ];
 
@@ -71,12 +71,14 @@ export default function Dashboard() {
 
   // L'encaissement est ouvert au caissier, à l'administrateur et au super administrateur
   const ongletVisible = (o) => {
+    if (o.caissierSeul) return estCaissier || user?.role === 'super_admin';
     if (estCaissier) return !!o.caissier;
     if (o.caissier) return estAdmin;
     return (!o.superAdmin || user?.role === 'super_admin') && (estAdmin || o.id === 'invoices');
   };
 
   const menuVisible = (m) => {
+    if (m.caissierSeul) return estCaissier || user?.role === 'super_admin';
     if (estCaissier) return !!m.caissier || m.id === 'profile';
     if (m.caissier) return estAdmin;
     return (estAdmin || m.id === 'invoices' || m.id === 'profile') && (!m.superAdmin || user?.role === 'super_admin');
@@ -169,7 +171,7 @@ export default function Dashboard() {
           </p>
         );
       case 'depenses':
-        return estAdmin || estCaissier ? (
+        return estCaissier || user?.role === 'super_admin' ? (
           <Depenses user={user} />
         ) : (
           <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -197,7 +199,13 @@ export default function Dashboard() {
           </p>
         );
       case 'audit':
-        return <AuditLog />;
+        return user?.role === 'super_admin' ? (
+          <AuditLog />
+        ) : (
+          <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            Accès réservé aux super administrateurs
+          </p>
+        );
       case 'utilisateurs':
         return user?.role === 'super_admin' ? (
           <Utilisateurs user={user} />

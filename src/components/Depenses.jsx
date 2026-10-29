@@ -12,10 +12,11 @@ const champ =
 
 const VIDE = { date_depense: '', libelle: '', montant: '', note: '' };
 
-// Dépenses : le caissier saisit les siennes ; l'administrateur et le super administrateur consultent.
+// Dépenses : le caissier et l'admin saisissent les leurs ; le super administrateur consulte et gère tout.
 export default function Depenses({ user }) {
-  const estCaissier = user?.role === 'caissier';
   const estAdmin = ['admin', 'super_admin'].includes(user?.role);
+  // Saisie ouverte au caissier et à l'admin ; le super admin consulte et peut tout modifier
+  const peutSaisir = ['caissier', 'admin'].includes(user?.role);
   const [depenses, setDepenses] = useState([]);
   const [noms, setNoms] = useState({});
   const [saisie, setSaisie] = useState({ ...VIDE, date_depense: aujourdhui() });
@@ -44,7 +45,7 @@ export default function Depenses({ user }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const peutModifier = (d) => user?.role === 'super_admin' || (estCaissier && d.created_by === user?.id && estDuJour(d));
+  const peutModifier = (d) => user?.role === 'super_admin' || (peutSaisir && d.created_by === user?.id && estDuJour(d));
 
   const totaux = useMemo(() => {
     const jour = aujourdhui();
@@ -121,7 +122,7 @@ export default function Depenses({ user }) {
         </div>
       </div>
 
-      {estCaissier && (
+      {peutSaisir && (
         <form onSubmit={enregistrer} className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold">{enModification ? 'Modifier la dépense' : 'Nouvelle dépense'}</h2>
@@ -138,7 +139,7 @@ export default function Depenses({ user }) {
                 onChange={(e) => setSaisie({ ...saisie, date_depense: e.target.value })} className={`mt-1 ${champ}`} />
             </label>
             <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
-              Libellé
+              Motif de la dépense (obligatoire)
               <input type="text" required value={saisie.libelle} placeholder="Ex. Carburant livraison"
                 onChange={(e) => setSaisie({ ...saisie, libelle: e.target.value })} className={`mt-1 ${champ}`} />
             </label>
