@@ -5,7 +5,7 @@ import FactureImprimable from './FactureImprimable';
 import { chargerEntreprise } from '../services/company';
 import { chargerProformas, chargerLignesProforma, creerProforma, supprimerProforma, definirPaiementProforma } from '../services/proformas';
 import { formatMontant, formatDate } from '../utils/format';
-import { ouvrirFenetreImpression, imprimerDansFenetre } from '../utils/imprimer';
+import { ouvrirFenetreImpression, imprimerDocument } from '../utils/imprimer';
 
 const champ =
   'mt-1.5 min-h-[44px] w-full border border-slate-300 rounded-lg px-3 text-[15px] outline-none focus:ring-2 focus:ring-blue-500 bg-white';
@@ -93,7 +93,7 @@ export default function Proformas({ user }) {
         client_phone: p.client_phone,
         created_at: p.created_at,
       };
-      imprimerDansFenetre(
+      await imprimerDocument(
         fenetre,
         <FactureImprimable facture={facture} lignes={items} entreprise={entreprise} titre="PROFORMA" />,
         p.proforma_number

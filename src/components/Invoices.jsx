@@ -8,7 +8,7 @@ import FactureImprimable from './FactureImprimable';
 import { creerFacture, validerFacture, supprimerFacture, chargerLignes, chargerFactures } from '../services/invoices';
 import { chargerEntreprise } from '../services/company';
 import { STATUS_LABEL, formatMontant, formatDate, numeroFacture, exporterCsv } from '../utils/format';
-import { ouvrirFenetreImpression, imprimerDansFenetre } from '../utils/imprimer';
+import { ouvrirFenetreImpression, imprimerDocument } from '../utils/imprimer';
 import TicketCaisse from './TicketCaisse';
 
 const champ =
@@ -63,7 +63,7 @@ export default function Invoices({ user, onChange }) {
       const document = mode === 'ticket'
         ? <TicketCaisse facture={facture} lignes={lignesFacture} entreprise={entreprise} />
         : <FactureImprimable facture={facture} lignes={lignesFacture} entreprise={entreprise} avecSignatureClient={mode === 'signature'} />;
-      imprimerDansFenetre(fenetre, document, numeroFacture(facture), { format: mode === 'ticket' ? 'ticket' : 'A4' });
+      await imprimerDocument(fenetre, document, numeroFacture(facture), { format: mode === 'ticket' ? 'ticket' : 'A4' });
     } catch (err) {
       fenetre.close();
       setError(err.message);
